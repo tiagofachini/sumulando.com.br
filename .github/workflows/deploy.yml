@@ -28,12 +28,6 @@ jobs:
       - name: Build do projeto
         run: npm run build
 
-      - name: Testar resolução DNS do servidor FTP
-        run: |
-          echo "Resolvendo: ${{ secrets.FTP_SERVER }}"
-          nslookup "${{ secrets.FTP_SERVER }}" || echo "FALHOU: hostname não resolvido"
-          ping -c 1 "${{ secrets.FTP_SERVER }}" || echo "FALHOU: sem resposta ao ping"
-
       - name: Normalizar caminho FTP (garantir barra final)
         id: ftp
         run: |
@@ -49,6 +43,6 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./dist/
           server-dir: ${{ steps.ftp.outputs.dir }}
-          dangerous-clean-slate: false
+          dangerous-clean-slate: true
           security: loose
           port: 21
