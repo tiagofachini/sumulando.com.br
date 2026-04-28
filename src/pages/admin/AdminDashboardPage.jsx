@@ -147,7 +147,7 @@ const AdminDashboardPage = () => {
   };
 
   // RFC 4180 compliant full-text CSV parser (handles quoted newlines and commas)
-  const parseFullCSV = (text) => {
+  const parseFullCSV = (text, separator = ',') => {
     const records = [];
     let currentRecord = [];
     let currentVal = '';
@@ -185,7 +185,7 @@ const AdminDashboardPage = () => {
         if (c === '"' && currentVal === '') {
           inQuote = true;
           fieldQuoted = true;
-        } else if (c === ',') {
+        } else if (c === separator) {
           pushField();
         } else if (c === '\r') {
           if (i + 1 < text.length && text[i + 1] === '\n') i++;
@@ -206,6 +206,12 @@ const AdminDashboardPage = () => {
     return records;
   };
 
+  const detectSeparator = (firstLine) => {
+    const commas = (firstLine.match(/,/g) || []).length;
+    const semicolons = (firstLine.match(/;/g) || []).length;
+    return semicolons > commas ? ';' : ',';
+  };
+
   const normalizeContent = (str) => {
     return str ? str.replace(/\s+/g, ' ').trim() : '';
   };
@@ -217,8 +223,12 @@ const AdminDashboardPage = () => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const text = e.target.result;
-        const allRecords = parseFullCSV(text);
+        // Strip BOM (added by Excel when saving UTF-8 CSV)
+        const raw = e.target.result.replace(/^﻿/, '');
+        // Auto-detect separator: Excel BR uses ";" instead of ","
+        const firstLine = raw.split(/\r?\n/)[0];
+        const separator = detectSeparator(firstLine);
+        const allRecords = parseFullCSV(raw, separator);
 
         if (allRecords.length < 2) {
             setImportSummary(prev => ({ ...prev, errors: [{ line: 1, message: "Arquivo vazio ou cabeçalho ausente." }] }));
