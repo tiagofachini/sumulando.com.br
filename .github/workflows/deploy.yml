@@ -5,6 +5,9 @@ on:
     branches:
       - main
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -16,7 +19,7 @@ jobs:
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Instalar dependências
@@ -25,6 +28,13 @@ jobs:
       - name: Build do projeto
         run: npm run build
 
+      - name: Normalizar caminho FTP (garantir barra final)
+        id: ftp
+        run: |
+          DIR="${{ secrets.FTP_SERVER_DIR }}"
+          [[ "${DIR}" != */ ]] && DIR="${DIR}/"
+          echo "dir=${DIR}" >> $GITHUB_OUTPUT
+
       - name: Deploy via FTP para Hostinger
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -32,5 +42,5 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./dist/
-          server-dir: ${{ secrets.FTP_SERVER_DIR }}
+          server-dir: ${{ steps.ftp.outputs.dir }}
           dangerous-clean-slate: false
