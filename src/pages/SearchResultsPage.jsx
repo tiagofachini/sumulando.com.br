@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Helmet } from 'react-helmet';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
+import { slugify } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { Calendar, Loader2 } from 'lucide-react';
 import Header from '@/components/Header';
@@ -11,8 +12,11 @@ import ShareButtons from '@/components/ShareButtons';
 
 const PAGE_SIZE = 100;
 
+const isUUID = (s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+
 const SearchResultsPage = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [results, setResults] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -20,6 +24,7 @@ const SearchResultsPage = () => {
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(0);
   const [tribunais, setTribunais] = useState([]);
+  const [topicsMap, setTopicsMap] = useState(null);
   const observer = useRef();
 
   const query = searchParams.get('q');
@@ -31,9 +36,43 @@ const SearchResultsPage = () => {
         if (!supabase) return;
         const { data } = await supabase.from('tribunais').select('id, name');
         setTribunais(data || []);
-    }
+    };
     fetchTribunais();
   }, []);
+
+  useEffect(() => {
+    if (!supabase) return;
+    const fetchTopicsMap = async () => {
+      const { data } = await supabase.from('topicos').select('id, slug');
+      const map = { slugToId: {}, idToSlug: {} };
+      (data || []).forEach(t => {
+        if (t.slug) {
+          map.slugToId[t.slug] = t.id;
+          map.idToSlug[t.id] = t.slug;
+        }
+      });
+      setTopicsMap(map);
+    };
+    fetchTopicsMap();
+  }, []);
+
+  // Redirect old UUID-based topic URLs to slug-based URLs
+  useEffect(() => {
+    if (!topicsMap || !topicsParams.some(isUUID)) return;
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('topico');
+    topicsParams.forEach(p => newParams.append('topico', isUUID(p) ? (topicsMap.idToSlug[p] || p) : p));
+    navigate(`/busca?${newParams.toString()}`, { replace: true });
+  }, [topicsMap, topicsParams, searchParams, navigate]);
+
+  const resolvedTopicIds = useMemo(() => {
+    if (!topicsMap) return topicsParams;
+    return topicsParams.map(p => isUUID(p) ? p : (topicsMap.slugToId[p] || p));
+  }, [topicsMap, topicsParams]);
+
+  const hasUUIDs = topicsParams.some(isUUID);
+  const hasSlugs = topicsParams.some(p => !isUUID(p));
+  const isReady = !hasUUIDs && (!hasSlugs || topicsMap !== null);
 
   const fetchResults = useCallback(async (currentPage) => {
     if (!supabase) return;
@@ -47,7 +86,7 @@ const SearchResultsPage = () => {
     const rpcParams = {
       p_query: query || '',
       p_tribunais: tribunaisParams.length > 0 ? tribunaisParams : null,
-      p_topicos: topicsParams.length > 0 ? topicsParams : null,
+      p_topicos: resolvedTopicIds.length > 0 ? resolvedTopicIds : null,
       p_limit: PAGE_SIZE,
       p_offset: currentPage * PAGE_SIZE,
     };
@@ -70,16 +109,17 @@ const SearchResultsPage = () => {
     } else {
       setLoadingMore(false);
     }
-  }, [query, tribunaisParams, topicsParams]);
+  }, [query, tribunaisParams, resolvedTopicIds]);
 
-  // Reset and fetch on filter change
+  // Reset and fetch on filter change (wait for slug→ID resolution when topic params present)
   useEffect(() => {
+    if (!isReady) return;
     setResults([]);
     setPage(0);
     setHasMore(true);
     setTotalCount(0);
     fetchResults(0);
-  }, [fetchResults]);
+  }, [fetchResults, isReady]);
 
   // Infinite scroll observer
   const lastElementRef = useCallback(node => {
@@ -196,7 +236,7 @@ const SearchResultsPage = () => {
                                   {sumula.topics && sumula.topics.length > 0 && (
                                       <div className="flex items-center flex-wrap gap-2" onClick={handleActionClick}>
                                           {sumula.topics.map(topic => (
-                                              <Link to={`/busca?topico=${topic.id}`} key={topic.id} className="z-10 relative">
+                                              <Link to={`/busca?topico=${slugify(topic.name)}`} key={topic.id} className="z-10 relative">
                                                   <Badge variant="secondary" className="px-2.5 py-0.5 text-xs bg-blue-100 text-blue-800 hover:bg-blue-200 cursor-pointer">{topic.name}</Badge>
                                               </Link>
                                           ))}

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { useParams, Link } from 'react-router-dom';
+import { slugify } from '@/lib/utils';
 import { ExternalLink, BookOpen, Landmark, MessageSquarePlus, Tag, HelpCircle, Youtube } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -212,7 +213,7 @@ const SumulaDetailPage = () => {
                         {sumula.topicos && sumula.topicos.length > 0 && (
                             <div className="flex flex-wrap gap-2 items-center">
                             {sumula.topicos.map((topic, index) => (
-                                <Link to={`/busca?topico=${topic.id}`} key={index}>
+                                <Link to={`/busca?topico=${slugify(topic.name)}`} key={index}>
                                 <Badge
                                     variant="secondary"
                                     className="px-3 py-1 text-sm bg-blue-100 text-blue-800 hover:bg-blue-200 transition-colors cursor-pointer"
@@ -334,8 +335,8 @@ const SumulaDetailPage = () => {
                                                   {related.tribunal_name}
                                               </Badge>
                                               {related.common_topics?.map(topic => (
-                                                  <Link 
-                                                      to={`/busca?topico=${topic.id}`} 
+                                                  <Link
+                                                      to={`/busca?topico=${slugify(topic.name)}`}
                                                       key={topic.id} 
                                                       onClick={(e) => e.stopPropagation()} 
                                                       className="relative z-10"

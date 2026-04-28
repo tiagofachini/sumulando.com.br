@@ -12,6 +12,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { supabase } from '@/lib/supabaseClient';
+import { slugify } from '@/lib/utils';
 
 const Header = () => {
   const navigate = useNavigate();
@@ -39,17 +40,17 @@ const Header = () => {
         const tribunalParams = searchParams.getAll('tribunal');
         const currentSelectedTribunais = tribunalOptions.filter(trib => tribunalParams.includes(trib.value));
         setSelectedTribunais(currentSelectedTribunais);
-        
+
         const topicParams = searchParams.getAll('topico');
 
         const tribunalIds = currentSelectedTribunais.map(t => t.value);
         const { data: topicsData } = await supabase.rpc('get_topics_by_tribunais', { p_tribunal_ids: tribunalIds.length > 0 ? tribunalIds : null });
 
-        const topicOptions = topicsData?.map(t => ({ value: t.id, label: t.name })) || [];
+        const topicOptions = topicsData?.map(t => ({ value: t.id, label: t.name, slug: slugify(t.name) })) || [];
         setTopics(topicOptions);
 
         setInitialSearchTerm(searchParams.get('q') || '');
-        setSelectedTopics(topicOptions.filter(cat => topicParams.includes(cat.value)));
+        setSelectedTopics(topicOptions.filter(cat => topicParams.includes(cat.slug) || topicParams.includes(cat.value)));
         
         setIsDataLoaded(true);
         setKey(Date.now()); // Reset the key to re-mount SearchForm with new initial values
@@ -61,7 +62,7 @@ const Header = () => {
     const params = new URLSearchParams();
     if (currentSearchTerm) params.append('q', currentSearchTerm);
     currentSelectedTribunais.forEach(trib => params.append('tribunal', trib.value));
-    currentSelectedTopics.forEach(cat => params.append('topico', cat.value));
+    currentSelectedTopics.forEach(cat => params.append('topico', cat.slug || slugify(cat.label)));
     
     setIsMobileMenuOpen(false);
     
@@ -94,7 +95,7 @@ const Header = () => {
         
         const tribunalIds = newSelectedTribunais.map(t => t.value);
         const { data: topicsData } = await supabase.rpc('get_topics_by_tribunais', { p_tribunal_ids: tribunalIds.length > 0 ? tribunalIds : null });
-        const newTopicOptions = topicsData?.map(t => ({ value: t.id, label: t.name })) || [];
+        const newTopicOptions = topicsData?.map(t => ({ value: t.id, label: t.name, slug: slugify(t.name) })) || [];
         setLocalTopicsOptions(newTopicOptions);
         
         // Remove selected topics that are no longer in the options list

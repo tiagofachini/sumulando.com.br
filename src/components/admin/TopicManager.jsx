@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabaseClient';
+import { slugify } from '@/lib/utils';
 
 const TopicManager = () => {
   const { toast } = useToast();
@@ -64,11 +65,12 @@ const TopicManager = () => {
     }
     
     try {
+        const slug = slugify(topicName.trim());
         if (editingTopic) {
-          const { error } = await supabase.from('topicos').update({ name: topicName.trim() }).eq('id', editingTopic.id);
+          const { error } = await supabase.from('topicos').update({ name: topicName.trim(), slug }).eq('id', editingTopic.id);
           if (error) throw error;
         } else {
-          const { error } = await supabase.from('topicos').insert({ name: topicName.trim() });
+          const { error } = await supabase.from('topicos').insert({ name: topicName.trim(), slug });
           if (error) throw error;
         }
 
