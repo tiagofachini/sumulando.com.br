@@ -54,7 +54,7 @@ const AdminDashboardPage = () => {
       setLoading(true);
       try {
         const [
-            { count: sumulasCount, data: allSumulas, error: sumulasError },
+            { count: sumulasCount, error: sumulasError },
             { count: topicosCount },
             { count: tribunaisCount, data: tribunaisData, error: tribunaisError },
             { count: faqsCount },
@@ -63,8 +63,7 @@ const AdminDashboardPage = () => {
             { data: topTribunaisData, error: topTribunaisError },
             { data: faqSumulasData, error: faqSumulasError },
         ] = await Promise.all([
-            // Fetch ID and Content for duplicate checking/updating
-            supabase.from('sumulas').select('id, title, tribunal_id, slug, content', { count: 'exact' }),
+            supabase.from('sumulas').select('*', { count: 'exact', head: true }),
             supabase.from('topicos').select('*', { count: 'exact', head: true }),
             supabase.from('tribunais').select('id, name', { count: 'exact' }),
             supabase.from('faqs').select('*', { count: 'exact', head: true }),
@@ -81,33 +80,48 @@ const AdminDashboardPage = () => {
         if (topTribunaisError) throw topTribunaisError;
         if (faqSumulasError) throw faqSumulasError;
 
-        setStats({ 
-            sumulas: sumulasCount || 0, 
-            topicos: topicosCount || 0, 
+        setStats({
+            sumulas: sumulasCount || 0,
+            topicos: topicosCount || 0,
             tribunais: tribunaisCount || 0,
             faqs: faqsCount || 0,
         });
-        
+
         setFeedbackStats(feedbackData || { novo: 0, lido: 0, resolvido: 0 });
         setTopTopics(topicsData || []);
         setTopTribunais(topTribunaisData || []);
         setTopFaqSumulas(faqSumulasData || []);
 
-        // Prepare Maps for Import Validation
+        // Prepare Maps for Import Validation — paginate to load all records
         setTribunaisMap(new Map(tribunaisData.map(t => [t.name.toLowerCase().trim(), t.id])));
-        
+
         const sumulasMap = new Map();
         const slugsSet = new Set();
-        
-        allSumulas.forEach(s => {
-          sumulasMap.set(`${s.title.toLowerCase().trim()}|${s.tribunal_id}`, {
-            id: s.id,
-            content: s.content,
-            slug: s.slug
+        const PAGE = 1000;
+        let page = 0;
+        let keepFetching = true;
+
+        while (keepFetching) {
+          const { data: chunk, error: chunkError } = await supabase
+            .from('sumulas')
+            .select('id, title, tribunal_id, slug, content')
+            .range(page * PAGE, (page + 1) * PAGE - 1);
+
+          if (chunkError) throw chunkError;
+
+          (chunk || []).forEach(s => {
+            sumulasMap.set(`${s.title.toLowerCase().trim()}|${s.tribunal_id}`, {
+              id: s.id,
+              content: s.content,
+              slug: s.slug,
+            });
+            slugsSet.add(s.slug);
           });
-          slugsSet.add(s.slug);
-        });
-        
+
+          if (!chunk || chunk.length < PAGE) keepFetching = false;
+          else page++;
+        }
+
         setExistingSumulasMap(sumulasMap);
         setExistingSlugs(slugsSet);
 
