@@ -146,42 +146,64 @@ const AdminDashboardPage = () => {
     if(fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // Custom CSV Line Parser
-  const parseCustomCsvLine = (line) => {
-    const fields = [];
+  // RFC 4180 compliant full-text CSV parser (handles quoted newlines and commas)
+  const parseFullCSV = (text) => {
+    const records = [];
+    let currentRecord = [];
     let currentVal = '';
     let inQuote = false;
     let fieldQuoted = false;
 
-    for (let i = 0; i < line.length; i++) {
-        const c = line[i];
-        if (inQuote) {
-            if (c === '"') {
-                if (i + 1 < line.length && line[i + 1] === '"') {
-                    currentVal += '"';
-                    i++; // Skip next quote
-                } else {
-                    inQuote = false;
-                }
-            } else {
-                currentVal += c;
-            }
+    const pushField = () => {
+      currentRecord.push({ value: currentVal, quoted: fieldQuoted });
+      currentVal = '';
+      fieldQuoted = false;
+    };
+
+    const pushRecord = () => {
+      pushField();
+      if (currentRecord.some(f => f.value.trim() !== '')) {
+        records.push(currentRecord);
+      }
+      currentRecord = [];
+    };
+
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (inQuote) {
+        if (c === '"') {
+          if (i + 1 < text.length && text[i + 1] === '"') {
+            currentVal += '"';
+            i++;
+          } else {
+            inQuote = false;
+          }
         } else {
-            if (c === '"') {
-                inQuote = true;
-                fieldQuoted = true;
-            } else if (c === ',') {
-                fields.push({ value: currentVal, quoted: fieldQuoted });
-                currentVal = '';
-                fieldQuoted = false;
-            } else {
-                currentVal += c;
-            }
+          currentVal += c; // newlines inside quotes are part of the field
         }
+      } else {
+        if (c === '"' && currentVal === '') {
+          inQuote = true;
+          fieldQuoted = true;
+        } else if (c === ',') {
+          pushField();
+        } else if (c === '\r') {
+          if (i + 1 < text.length && text[i + 1] === '\n') i++;
+          pushRecord();
+        } else if (c === '\n') {
+          pushRecord();
+        } else {
+          currentVal += c;
+        }
+      }
     }
-    // Push last field
-    fields.push({ value: currentVal, quoted: fieldQuoted });
-    return fields;
+
+    // Handle last record if file doesn't end with newline
+    if (currentVal !== '' || currentRecord.length > 0) {
+      pushRecord();
+    }
+
+    return records;
   };
 
   const normalizeContent = (str) => {
@@ -196,22 +218,22 @@ const AdminDashboardPage = () => {
     reader.onload = (e) => {
       try {
         const text = e.target.result;
-        const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
-        
-        if (lines.length < 2) {
+        const allRecords = parseFullCSV(text);
+
+        if (allRecords.length < 2) {
             setImportSummary(prev => ({ ...prev, errors: [{ line: 1, message: "Arquivo vazio ou cabeçalho ausente." }] }));
-            setImportStep('confirm'); // Go to confirm to show errors
+            setImportStep('confirm');
             setImporting(false);
             return;
         }
 
-        // Parse Header to find indices
-        const headerFields = parseCustomCsvLine(lines[0]);
+        // Parse Header to find column indices
+        const headerFields = allRecords[0];
         const headers = headerFields.map(f => f.value.toLowerCase().trim());
-        
+
         const requiredHeaders = ['titulo', 'conteudo', 'tribunal'];
         const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
-        
+
         if (missingHeaders.length > 0) {
             setImportSummary(prev => ({ ...prev, errors: [{ line: 1, message: `Cabeçalho inválido. Faltando: ${missingHeaders.join(', ')}` }] }));
             setImportStep('confirm');
@@ -221,51 +243,54 @@ const AdminDashboardPage = () => {
 
         const map = {};
         headers.forEach((h, i) => map[h] = i);
-        
+
         const inserts = [];
         const updates = [];
         const skips = [];
         const errors = [];
 
-        // Process Data Lines
-        for (let i = 1; i < lines.length; i++) {
-            const lineStr = lines[i];
-            const parsedLine = parseCustomCsvLine(lineStr);
+        // Process Data Rows
+        for (let i = 1; i < allRecords.length; i++) {
+            const parsedLine = allRecords[i];
             const lineNum = i + 1;
 
-            // Basic Field Count Check
             if (parsedLine.length < requiredHeaders.length) {
                 errors.push({ line: lineNum, message: "Linha com colunas insuficientes." });
                 continue;
             }
 
             const title = parsedLine[map['titulo']]?.value?.trim();
-            const contentField = parsedLine[map['conteudo']];
             const tribunalName = parsedLine[map['tribunal']]?.value?.trim();
             const publishDate = parsedLine[map['publish_date']]?.value?.trim();
             const referenceLink = parsedLine[map['reference_link']]?.value?.trim();
 
-            // 1. Strict 'conteudo' quote check
-            if (!contentField || !contentField.quoted) {
-                errors.push({ line: lineNum, message: "Campo 'conteudo' deve estar entre aspas duplas." });
-                continue;
+            // Content: if unquoted and overflows into extra columns (unquoted commas),
+            // join all fields from conteudo index onwards as a single content string.
+            const conteudoIdx = map['conteudo'];
+            const rawContentField = parsedLine[conteudoIdx];
+            let content = '';
+            if (rawContentField) {
+                if (!rawContentField.quoted && parsedLine.length > conteudoIdx + 1) {
+                    content = parsedLine.slice(conteudoIdx).map(f => f.value).join(',').trim();
+                } else {
+                    content = rawContentField.value.trim();
+                }
             }
-            const content = contentField.value;
 
-            // 2. Mandatory Fields
+            // 1. Mandatory Fields
             if (!title || !content || !tribunalName) {
                 errors.push({ line: lineNum, message: "Campos obrigatórios vazios (titulo, conteudo, tribunal)." });
                 continue;
             }
 
-            // 3. Tribunal Validation
+            // 2. Tribunal Validation
             const tribunalId = tribunaisMap.get(tribunalName.toLowerCase());
             if (!tribunalId) {
                 errors.push({ line: lineNum, message: `Tribunal inválido: "${tribunalName}"` });
                 continue;
             }
 
-            // 4. Duplicate/Update Logic
+            // 3. Duplicate/Update Logic
             const key = `${title.toLowerCase()}|${tribunalId}`;
             const existingRecord = existingSumulasMap.get(key);
 
@@ -273,19 +298,19 @@ const AdminDashboardPage = () => {
                 const normNew = normalizeContent(content);
                 const normOld = normalizeContent(existingRecord.content);
 
-                if (normNew.length > normOld.length) {
+                if (normNew !== normOld) {
                     updates.push({
                         line: lineNum,
-                        id: existingRecord.id, // Needed for update
-                        title: title, // Keep for display
+                        id: existingRecord.id,
+                        title: title,
                         tribunal_id: tribunalId,
-                        slug: existingRecord.slug, // Preserve slug
-                        content: content, // Update content
+                        slug: existingRecord.slug,
+                        content: content,
                         publish_date: publishDate || new Date().toISOString().split('T')[0],
                         reference_link: referenceLink
                     });
                 } else {
-                    skips.push({ line: lineNum, title, reason: "Conteúdo existente é maior ou igual." });
+                    skips.push({ line: lineNum, title, reason: "Conteúdo idêntico ao existente." });
                 }
             } else {
                 inserts.push({
@@ -293,7 +318,7 @@ const AdminDashboardPage = () => {
                     title: title,
                     content: content,
                     tribunal_id: tribunalId,
-                    tribunal_name: tribunalName, // For slug generation help
+                    tribunal_name: tribunalName,
                     publish_date: publishDate || new Date().toISOString().split('T')[0],
                     reference_link: referenceLink
                 });
@@ -449,10 +474,10 @@ const AdminDashboardPage = () => {
                             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 text-sm">
                                 <h4 className="font-bold mb-2 flex items-center"><FileText className="w-4 h-4 mr-2"/> Formato Obrigatório</h4>
                                 <ul className="list-disc list-inside space-y-1 ml-2">
-                                    <li>Colunas: <strong>titulo, conteudo, tribunal, publish_date, reference_link</strong></li>
-                                    <li><strong>IMPORTANTE:</strong> O campo <strong>conteudo</strong> DEVE estar entre aspas duplas ("...").</li>
+                                    <li>Colunas: <strong>titulo, tribunal, reference_link, publish_date, conteudo</strong></li>
+                                    <li>Conteúdo com vírgulas ou quebras de linha deve estar entre aspas duplas ("...").</li>
                                     <li>Use aspas duplas duplas ("") para escapar aspas dentro do conteúdo.</li>
-                                    <li>Súmulas existentes (mesmo título e tribunal) serão atualizadas se o novo conteúdo for mais longo.</li>
+                                    <li>Súmulas existentes (mesmo título e tribunal) serão atualizadas se o conteúdo for diferente.</li>
                                 </ul>
                             </div>
                             
