@@ -132,6 +132,7 @@ const Header = () => {
                   onValueChange={handleTribunalChange}
                   placeholder="Tribunais"
                   className="h-14"
+                  maxDisplay={1}
               />
           </div>
            <div className={isMobile ? 'col-span-12' : 'col-span-3'}>
@@ -141,6 +142,7 @@ const Header = () => {
                     onValueChange={setLocalSelectedTopics}
                     placeholder="Tópicos"
                     className="h-14"
+                    maxDisplay={1}
                 />
            </div>
           <div className={isMobile ? 'col-span-12' : 'col-span-1'}>

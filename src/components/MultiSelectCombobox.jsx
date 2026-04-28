@@ -21,7 +21,7 @@ const shuffleArray = (array) => {
   return newArr;
 };
 
-export function MultiSelectCombobox({ options, value, onValueChange, onCreate, placeholder, className }) {
+export function MultiSelectCombobox({ options, value, onValueChange, onCreate, placeholder, className, maxDisplay }) {
   const inputRef = React.useRef(null);
   const [inputValue, setInputValue] = React.useState("");
   const selected = value || [];
@@ -108,9 +108,9 @@ export function MultiSelectCombobox({ options, value, onValueChange, onCreate, p
         )}
         onClick={() => inputRef.current?.focus()}
       >
-        <div className="flex gap-1 flex-wrap items-center flex-1">
-          {selected.map((option) => (
-            <Badge key={option.value} variant="secondary" className="whitespace-nowrap">
+        <div className={`flex gap-1 items-center flex-1 ${maxDisplay ? 'flex-nowrap overflow-hidden' : 'flex-wrap'}`}>
+          {(maxDisplay ? selected.slice(0, maxDisplay) : selected).map((option) => (
+            <Badge key={option.value} variant="secondary" className="whitespace-nowrap shrink-0">
               {option.label}
               <button
                 className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
@@ -132,6 +132,11 @@ export function MultiSelectCombobox({ options, value, onValueChange, onCreate, p
               </button>
             </Badge>
           ))}
+          {maxDisplay && selected.length > maxDisplay && (
+            <Badge variant="secondary" className="whitespace-nowrap shrink-0">
+              +{selected.length - maxDisplay}
+            </Badge>
+          )}
           <CommandPrimitive.Input
             ref={inputRef}
             placeholder={!selected.length ? placeholder : ""}
