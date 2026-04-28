@@ -226,6 +226,17 @@ const AdminDashboardPage = () => {
     return semicolons > commas ? ';' : ',';
   };
 
+  const parseDate = (raw) => {
+    if (!raw) return null;
+    const trimmed = raw.trim();
+    // DD/MM/YYYY → YYYY-MM-DD
+    const brFormat = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (brFormat) return `${brFormat[3]}-${brFormat[2]}-${brFormat[1]}`;
+    // Already YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+    return null;
+  };
+
   const normalizeContent = (str) => {
     return str ? str.replace(/\s+/g, ' ').trim() : '';
   };
@@ -285,7 +296,7 @@ const AdminDashboardPage = () => {
 
             const title = parsedLine[map['titulo']]?.value?.trim();
             const tribunalName = parsedLine[map['tribunal']]?.value?.trim();
-            const publishDate = parsedLine[map['publish_date']]?.value?.trim();
+            const publishDate = parseDate(parsedLine[map['publish_date']]?.value);
             const referenceLink = parsedLine[map['reference_link']]?.value?.trim();
 
             // Content: if unquoted and overflows into extra columns (unquoted commas),
