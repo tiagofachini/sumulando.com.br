@@ -39,7 +39,7 @@ const AdminDashboardPage = () => {
     skips: [],
     errors: []
   });
-  const [finalResult, setFinalResult] = useState({ success: 0, failed: 0 });
+  const [finalResult, setFinalResult] = useState({ success: 0, failed: 0, errorMessage: '' });
   const [importing, setImporting] = useState(false);
   
   // Cache for validation
@@ -140,7 +140,7 @@ const AdminDashboardPage = () => {
   const resetImport = () => {
     setImportFile(null);
     setImportSummary({ inserts: [], updates: [], skips: [], errors: [] });
-    setFinalResult({ success: 0, failed: 0 });
+    setFinalResult({ success: 0, failed: 0, errorMessage: '' });
     setImportStep('upload');
     setImporting(false);
     if(fileInputRef.current) fileInputRef.current.value = "";
@@ -353,78 +353,81 @@ const AdminDashboardPage = () => {
     setImporting(true);
     let successCount = 0;
     let failCount = 0;
+    let lastErrorMessage = '';
 
     const { inserts, updates } = importSummary;
+    const BATCH_SIZE = 50;
+
+    const chunkArray = (arr, size) => {
+      const chunks = [];
+      for (let i = 0; i < arr.length; i += size) chunks.push(arr.slice(i, i + size));
+      return chunks;
+    };
 
     try {
-        // Handle Inserts
+        // Handle Inserts in batches
         if (inserts.length > 0) {
             const tempSlugs = new Set(existingSlugs);
             const recordsToInsert = inserts.map(item => {
                 let baseSlug = slugify(`${item.title} ${item.tribunal_name}`);
                 let finalSlug = baseSlug;
                 let counter = 2;
-                while(tempSlugs.has(finalSlug)){
+                while (tempSlugs.has(finalSlug)) {
                     finalSlug = `${baseSlug}-${counter}`;
                     counter++;
                 }
                 tempSlugs.add(finalSlug);
-
                 return {
                     title: item.title,
                     content: item.content,
                     tribunal_id: item.tribunal_id,
                     slug: finalSlug,
-                    publish_date: item.publish_date,
-                    reference_link: item.reference_link,
+                    publish_date: item.publish_date || null,
+                    reference_link: item.reference_link || null,
                 };
             });
 
-            const { error } = await supabase.from('sumulas').insert(recordsToInsert);
-            if (error) {
-                console.error("Insert error", error);
-                failCount += inserts.length;
-                toast({ title: "Erro na Inserção", description: error.message, variant: "destructive" });
-            } else {
-                successCount += inserts.length;
+            for (const batch of chunkArray(recordsToInsert, BATCH_SIZE)) {
+                const { error } = await supabase.from('sumulas').insert(batch);
+                if (error) {
+                    console.error("Insert batch error:", error);
+                    failCount += batch.length;
+                    lastErrorMessage = error.message;
+                } else {
+                    successCount += batch.length;
+                }
             }
         }
 
-        // Handle Updates
-        // Supabase upsert requires unique constraint to match. PK is ID.
-        // We have IDs for updates.
+        // Handle Updates individually (guarantees we know exactly which record fails)
         if (updates.length > 0) {
-            const recordsToUpdate = updates.map(item => ({
-                id: item.id,
-                title: item.title, // Include required fields if constraint demands, though ID matches row
-                tribunal_id: item.tribunal_id,
-                slug: item.slug,
-                content: item.content,
-                publish_date: item.publish_date,
-                reference_link: item.reference_link
-            }));
+            for (const item of updates) {
+                const { error } = await supabase
+                    .from('sumulas')
+                    .update({
+                        content: item.content,
+                        publish_date: item.publish_date || null,
+                        reference_link: item.reference_link || null,
+                    })
+                    .eq('id', item.id);
 
-            const { error } = await supabase.from('sumulas').upsert(recordsToUpdate);
-             if (error) {
-                console.error("Update error", error);
-                failCount += updates.length;
-                toast({ title: "Erro na Atualização", description: error.message, variant: "destructive" });
-            } else {
-                successCount += updates.length;
+                if (error) {
+                    console.error(`Update error for "${item.title}":`, error);
+                    failCount++;
+                    lastErrorMessage = error.message;
+                } else {
+                    successCount++;
+                }
             }
         }
 
-        setFinalResult({ success: successCount, failed: failCount });
+        setFinalResult({ success: successCount, failed: failCount, errorMessage: lastErrorMessage });
         setImportStep('result');
-        toast({ 
-            title: "Processamento Concluído", 
-            description: `${successCount} registros processados com sucesso.`,
-            variant: successCount > 0 ? "default" : "destructive"
-        });
 
     } catch (error) {
         console.error("Import failed", error);
-        toast({ title: "Erro Crítico", description: error.message, variant: "destructive" });
+        setFinalResult({ success: successCount, failed: failCount, errorMessage: error.message });
+        setImportStep('result');
     } finally {
         setImporting(false);
     }
@@ -640,8 +643,11 @@ const AdminDashboardPage = () => {
                     
                     {importStep === 'result' && (
                         <div className="flex flex-col items-center justify-center h-full space-y-6 py-8">
-                            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
-                                <CheckCircle className="w-10 h-10 text-green-600" />
+                            <div className={`w-20 h-20 rounded-full flex items-center justify-center ${finalResult.failed === 0 ? 'bg-green-100' : 'bg-yellow-100'}`}>
+                                {finalResult.failed === 0
+                                    ? <CheckCircle className="w-10 h-10 text-green-600" />
+                                    : <AlertTriangle className="w-10 h-10 text-yellow-600" />
+                                }
                             </div>
                             <div className="text-center">
                                 <h3 className="text-2xl font-bold text-gray-800">Importação Finalizada!</h3>
@@ -657,6 +663,12 @@ const AdminDashboardPage = () => {
                                     <p className="text-sm text-gray-500 uppercase font-medium">Falhas</p>
                                 </div>
                             </div>
+                            {finalResult.errorMessage && (
+                                <div className="w-full max-w-lg p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800 break-words">
+                                    <p className="font-bold mb-1">Último erro registrado:</p>
+                                    <p className="font-mono">{finalResult.errorMessage}</p>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
