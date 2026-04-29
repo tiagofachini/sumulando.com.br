@@ -2,17 +2,13 @@ import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import path from 'path';
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://rjitzozuzonlnvczuvcy.supabase.co';
-const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJqaXR6b3p1em9ubG52Y3p1dmN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0NjAwNzksImV4cCI6MjA3NjAzNjA3OX0.0UAspkmlNEX3WchvOff8ROKaDiHSn4Y2YhxmCSE3pZo';
+const supabaseUrl = 'https://rjitzozuzonlnvczuvcy.supabase.co';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJqaXR6b3p1em9ubG52Y3p1dmN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0NjAwNzksImV4cCI6MjA3NjAzNjA3OX0.0UAspkmlNEX3WchvOff8ROKaDiHSn4Y2YhxmCSE3pZo';
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  global: {
-    headers: {
-      Origin: 'https://sumulando.com.br',
-      Referer: 'https://sumulando.com.br/',
-    },
-  },
-});
+console.log(`Using ${process.env.SUPABASE_SERVICE_ROLE_KEY ? 'service role key' : 'anon key'}`);
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 const PUBLIC_DIR = path.join(process.cwd(), 'public');
 const SITE_URL = 'https://sumulando.com.br';
 

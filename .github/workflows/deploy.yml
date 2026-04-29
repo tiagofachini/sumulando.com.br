@@ -27,6 +27,8 @@ jobs:
 
       - name: Build do projeto
         run: npm run build
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
       - name: Normalizar caminho FTP (garantir barra final)
         id: ftp
