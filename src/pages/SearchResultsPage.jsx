@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { Helmet } from 'react-helmet';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { slugify } from '@/lib/utils';
+
+const SITE_URL = 'https://sumulando.com.br';
 import { motion } from 'framer-motion';
 import { Calendar, Loader2, Search, Landmark, Tag } from 'lucide-react';
 import Header from '@/components/Header';
@@ -163,16 +165,52 @@ const SearchResultsPage = () => {
     <>
       <Helmet>
         <title>{`Resultados da busca ${getSearchTermText()} - Sumulando`}</title>
-        <meta name="description" content={`Resultados da busca por ${query} no Sumulando.`} />
+        <meta name="description" content={`Resultados da busca por ${query || 'súmulas'} no Sumulando.`} />
+        <link rel="canonical" href={`${SITE_URL}/busca`} />
+        <meta property="og:url" content={`${SITE_URL}/busca`} />
         <meta property="og:title" content={`Resultados da busca ${getSearchTermText()} - Sumulando`} />
-        <meta property="og:description" content={`Resultados da busca por ${query} no Sumulando.`} />
+        <meta property="og:description" content={`Resultados da busca por ${query || 'súmulas'} no Sumulando.`} />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://horizons-cdn.hostinger.com/d74f9542-f4b8-44ac-931b-e7d3b882cbac/19ab7e2e664db850bc6e313bf2b5dcdb.jpg" />
         <meta property="og:image:alt" content="Sumulando - Balança da Justiça" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={`Resultados da busca ${getSearchTermText()} - Sumulando`} />
-        <meta name="twitter:description" content={`Resultados da busca por ${query} no Sumulando.`} />
+        <meta name="twitter:description" content={`Resultados da busca por ${query || 'súmulas'} no Sumulando.`} />
         <meta name="twitter:image" content="https://horizons-cdn.hostinger.com/d74f9542-f4b8-44ac-931b-e7d3b882cbac/19ab7e2e664db850bc6e313bf2b5dcdb.jpg" />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "SearchResultsPage",
+                "@id": `${SITE_URL}/busca#webpage`,
+                "url": `${SITE_URL}/busca`,
+                "name": `Resultados da busca${query ? ` por "${query}"` : ''} - Sumulando`,
+                "isPartOf": { "@id": `${SITE_URL}/#website` },
+                "inLanguage": "pt-BR",
+                ...(totalCount > 0 && { "numberOfItems": totalCount })
+              },
+              {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                  { "@type": "ListItem", "position": 1, "name": "Início", "item": SITE_URL },
+                  { "@type": "ListItem", "position": 2, "name": "Busca", "item": `${SITE_URL}/busca` }
+                ]
+              },
+              ...(!loading && results.length > 0 ? [{
+                "@type": "ItemList",
+                "name": `Resultados da busca${query ? ` por "${query}"` : ''}`,
+                "numberOfItems": totalCount,
+                "itemListElement": results.slice(0, 20).map((sumula, index) => ({
+                  "@type": "ListItem",
+                  "position": index + 1,
+                  "name": sumula.title,
+                  "url": `${SITE_URL}/sumula/${sumula.slug}`
+                }))
+              }] : [])
+            ]
+          })}
+        </script>
         {/* Google tag (gtag.js) */}
         <script async src="https://www.googletagmanager.com/gtag/js?id=G-B3DPVRHY5H"></script>
         <script>

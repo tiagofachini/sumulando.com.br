@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { useParams, Link } from 'react-router-dom';
-import { slugify } from '@/lib/utils';
+import { slugify, stripHtml } from '@/lib/utils';
+
+const SITE_URL = 'https://sumulando.com.br';
 import { ExternalLink, BookOpen, Landmark, MessageSquarePlus, Tag, HelpCircle, Youtube } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -140,42 +142,65 @@ const SumulaDetailPage = () => {
       </p>` : `<p class="text-sm text-gray-500">Súmula publicada em: ${formattedPublishDate}</p>`
     }`;
     
-  const faqSchema = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    "mainEntity": sumula.faqs?.map(faq => ({
-      "@type": "Question",
-      "name": faq.question,
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": faq.answer
-      }
-    }))
-  };
-
   const youtubeEmbedUrl = getYoutubeEmbedUrl(sumula.youtube_url);
 
   return (
     <>
       <Helmet>
         <title>{`${sumula.title} - Sumulando`}</title>
-        <meta name="description" content={sumula.content.substring(0, 160)} />
+        <meta name="description" content={stripHtml(sumula.content).substring(0, 160)} />
+        <link rel="canonical" href={`${SITE_URL}/sumula/${slug}`} />
+        <meta property="og:url" content={`${SITE_URL}/sumula/${slug}`} />
         <meta property="og:title" content={`${sumula.title} - Sumulando`} />
-        <meta property="og:description" content={sumula.content.substring(0, 160)} />
+        <meta property="og:description" content={stripHtml(sumula.content).substring(0, 160)} />
         <meta property="og:image" content="https://horizons-cdn.hostinger.com/d74f9542-f4b8-44ac-931b-e7d3b882cbac/19ab7e2e664db850bc6e313bf2b5dcdb.jpg" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:type" content="article" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={`${sumula.title} - Sumulando`} />
-        <meta name="twitter:description" content={sumula.content.substring(0, 160)} />
+        <meta name="twitter:description" content={stripHtml(sumula.content).substring(0, 160)} />
         <meta name="twitter:image" content="https://horizons-cdn.hostinger.com/d74f9542-f4b8-44ac-931b-e7d3b882cbac/19ab7e2e664db850bc6e313bf2b5dcdb.jpg" />
-
-        {sumula.faqs && sumula.faqs.length > 0 && (
-            <script type="application/ld+json">
-                {JSON.stringify(faqSchema)}
-            </script>
-        )}
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "LegalDocument",
+                "@id": `${SITE_URL}/sumula/${slug}#document`,
+                "name": sumula.title,
+                "text": stripHtml(sumula.content),
+                "url": `${SITE_URL}/sumula/${slug}`,
+                "datePublished": sumula.publish_date,
+                "inLanguage": "pt-BR",
+                ...(sumula.topicos?.length > 0 && {
+                  "keywords": sumula.topicos.map(t => t.name).join(', '),
+                  "about": sumula.topicos.map(t => ({ "@type": "Thing", "name": t.name }))
+                }),
+                "creator": { "@type": "Organization", "name": sumula.tribunal_name },
+                "publisher": { "@id": `${SITE_URL}/#organization` },
+                "isPartOf": { "@id": `${SITE_URL}/#website` },
+                ...(sumula.reference_link && { "sameAs": sumula.reference_link })
+              },
+              {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                  { "@type": "ListItem", "position": 1, "name": "Início", "item": SITE_URL },
+                  { "@type": "ListItem", "position": 2, "name": "Busca", "item": `${SITE_URL}/busca` },
+                  { "@type": "ListItem", "position": 3, "name": sumula.title, "item": `${SITE_URL}/sumula/${slug}` }
+                ]
+              },
+              ...(sumula.faqs?.length > 0 ? [{
+                "@type": "FAQPage",
+                "mainEntity": sumula.faqs.map(faq => ({
+                  "@type": "Question",
+                  "name": faq.question,
+                  "acceptedAnswer": { "@type": "Answer", "text": faq.answer }
+                }))
+              }] : [])
+            ]
+          })}
+        </script>
         {/* Google tag (gtag.js) */}
         <script async src="https://www.googletagmanager.com/gtag/js?id=AW-1051517207"></script>
         <script>

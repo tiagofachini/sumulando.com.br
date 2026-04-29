@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MultiSelectCombobox } from '@/components/MultiSelectCombobox';
 import { supabase } from '@/lib/supabaseClient';
+import { slugify } from '@/lib/utils';
+
+const SITE_URL = 'https://sumulando.com.br';
 
 const HomePage = () => {
   const navigate = useNavigate();
@@ -23,7 +26,7 @@ const HomePage = () => {
         if (!supabase) return;
         
         const { data: tribunaisData } = await supabase.from('tribunais').select('id, name');
-        const { data: topicsData } = await supabase.from('topicos').select('id, name').order('name');
+        const { data: topicsData } = await supabase.from('topicos').select('id, name, slug').order('name');
         setTribunais(tribunaisData || []);
         setTopics(topicsData || []);
 
@@ -45,7 +48,7 @@ const HomePage = () => {
       selectedTribunais.forEach(trib => params.append('tribunal', trib.value));
     }
     if (selectedTopics.length > 0) {
-      selectedTopics.forEach(cat => params.append('topico', cat.value));
+      selectedTopics.forEach(cat => params.append('topico', cat.slug || slugify(cat.label)));
     }
     
     navigate(`/busca?${params.toString()}`);
@@ -58,13 +61,15 @@ const HomePage = () => {
   };
 
   const tribunalOptions = tribunais.map(trib => ({ value: trib.id, label: trib.name }));
-  const topicOptions = topics.map(cat => ({ value: cat.id, label: cat.name }));
+  const topicOptions = topics.map(cat => ({ value: cat.id, label: cat.name, slug: cat.slug || slugify(cat.name) }));
 
   return (
     <>
       <Helmet>
         <title>Sumulando - Busca de Súmulas e Enunciados Judiciais</title>
-				<meta name="description" content="Encontre súmulas e enunciados dos principais tribunais brasileiros: STF, STJ, STM, TST e TSE. Busca rápida e organizada." />
+        <meta name="description" content="Encontre súmulas e enunciados dos principais tribunais brasileiros: STF, STJ, STM, TST e TSE. Busca rápida e organizada." />
+        <link rel="canonical" href={SITE_URL} />
+        <meta property="og:url" content={SITE_URL} />
         <meta property="og:title" content="Sumulando - Busca de Súmulas e Enunciados Judiciais" />
         <meta property="og:description" content="Encontre súmulas e enunciados dos principais tribunais brasileiros: STF, STJ, STM, TST e TSE. Busca rápida e organizada." />
         <meta property="og:type" content="website" />
@@ -74,6 +79,53 @@ const HomePage = () => {
         <meta name="twitter:title" content="Sumulando - Busca de Súmulas e Enunciados Judiciais" />
         <meta name="twitter:description" content="Encontre súmulas e enunciados dos principais tribunais brasileiros: STF, STJ, STM, TST e TSE. Busca rápida e organizada." />
         <meta name="twitter:image" content="https://horizons-cdn.hostinger.com/d74f9542-f4b8-44ac-931b-e7d3b882cbac/19ab7e2e664db850bc6e313bf2b5dcdb.jpg" />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "WebSite",
+                "@id": `${SITE_URL}/#website`,
+                "url": SITE_URL,
+                "name": "Sumulando",
+                "description": "Encontre súmulas e enunciados dos principais tribunais brasileiros: STF, STJ, STM, TST e TSE.",
+                "inLanguage": "pt-BR",
+                "publisher": { "@id": `${SITE_URL}/#organization` },
+                "potentialAction": {
+                  "@type": "SearchAction",
+                  "target": {
+                    "@type": "EntryPoint",
+                    "urlTemplate": `${SITE_URL}/busca?q={search_term_string}`
+                  },
+                  "query-input": "required name=search_term_string"
+                }
+              },
+              {
+                "@type": "Organization",
+                "@id": `${SITE_URL}/#organization`,
+                "name": "Sumulando",
+                "url": SITE_URL,
+                "logo": {
+                  "@type": "ImageObject",
+                  "url": "https://horizons-cdn.hostinger.com/d74f9542-f4b8-44ac-931b-e7d3b882cbac/19ab7e2e664db850bc6e313bf2b5dcdb.jpg",
+                  "width": 1200,
+                  "height": 630
+                },
+                "description": "Plataforma de pesquisa de súmulas e enunciados dos principais tribunais brasileiros."
+              },
+              {
+                "@type": "WebPage",
+                "@id": `${SITE_URL}/#webpage`,
+                "url": SITE_URL,
+                "name": "Sumulando - Busca de Súmulas e Enunciados Judiciais",
+                "isPartOf": { "@id": `${SITE_URL}/#website` },
+                "about": { "@id": `${SITE_URL}/#organization` },
+                "description": "Encontre súmulas e enunciados dos principais tribunais brasileiros: STF, STJ, STM, TST e TSE. Busca rápida e organizada.",
+                "inLanguage": "pt-BR"
+              }
+            ]
+          })}
+        </script>
         {/* Google tag (gtag.js) */}
         <script async src="https://www.googletagmanager.com/gtag/js?id=G-B3DPVRHY5H"></script>
         <script>

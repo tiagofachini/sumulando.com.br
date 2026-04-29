@@ -5,6 +5,9 @@ import { motion } from 'framer-motion';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { supabase } from '@/lib/supabaseClient';
+import { stripHtml } from '@/lib/utils';
+
+const SITE_URL = 'https://sumulando.com.br';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const InstitutionalPage = () => {
@@ -65,16 +68,42 @@ const InstitutionalPage = () => {
     <>
       <Helmet>
         <title>{`${page.title} - Sumulando`}</title>
-        <meta name="description" content={`Informações sobre ${page.title} no Sumulando.`} />
+        <meta name="description" content={stripHtml(page.content).substring(0, 160) || `Informações sobre ${page.title} no Sumulando.`} />
+        <link rel="canonical" href={`${SITE_URL}/institucional/${slug}`} />
+        <meta property="og:url" content={`${SITE_URL}/institucional/${slug}`} />
         <meta property="og:title" content={`${page.title} - Sumulando`} />
-        <meta property="og:description" content={`Informações sobre ${page.title} no Sumulando.`} />
-        <meta property="og:type" content="website" />
+        <meta property="og:description" content={stripHtml(page.content).substring(0, 160) || `Informações sobre ${page.title} no Sumulando.`} />
+        <meta property="og:type" content="article" />
         <meta property="og:image" content="https://horizons-cdn.hostinger.com/d74f9542-f4b8-44ac-931b-e7d3b882cbac/19ab7e2e664db850bc6e313bf2b5dcdb.jpg" />
         <meta property="og:image:alt" content="Sumulando - Balança da Justiça" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={`${page.title} - Sumulando`} />
-        <meta name="twitter:description" content={`Informações sobre ${page.title} no Sumulando.`} />
+        <meta name="twitter:description" content={stripHtml(page.content).substring(0, 160) || `Informações sobre ${page.title} no Sumulando.`} />
         <meta name="twitter:image" content="https://horizons-cdn.hostinger.com/d74f9542-f4b8-44ac-931b-e7d3b882cbac/19ab7e2e664db850bc6e313bf2b5dcdb.jpg" />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "WebPage",
+                "@id": `${SITE_URL}/institucional/${slug}#webpage`,
+                "url": `${SITE_URL}/institucional/${slug}`,
+                "name": `${page.title} - Sumulando`,
+                "description": stripHtml(page.content).substring(0, 300) || `Informações sobre ${page.title} no Sumulando.`,
+                "isPartOf": { "@id": `${SITE_URL}/#website` },
+                "publisher": { "@id": `${SITE_URL}/#organization` },
+                "inLanguage": "pt-BR"
+              },
+              {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                  { "@type": "ListItem", "position": 1, "name": "Início", "item": SITE_URL },
+                  { "@type": "ListItem", "position": 2, "name": page.title, "item": `${SITE_URL}/institucional/${slug}` }
+                ]
+              }
+            ]
+          })}
+        </script>
         {/* Google tag (gtag.js) */}
         <script async src="https://www.googletagmanager.com/gtag/js?id=G-B3DPVRHY5H"></script>
         <script>
