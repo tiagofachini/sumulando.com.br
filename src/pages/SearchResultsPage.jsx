@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { slugify } from '@/lib/utils';
 import { motion } from 'framer-motion';
-import { Calendar, Loader2 } from 'lucide-react';
+import { Calendar, Loader2, Search, Landmark, Tag } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { supabase } from '@/lib/supabaseClient';
@@ -43,12 +43,13 @@ const SearchResultsPage = () => {
   useEffect(() => {
     if (!supabase) return;
     const fetchTopicsMap = async () => {
-      const { data } = await supabase.from('topicos').select('id, slug');
-      const map = { slugToId: {}, idToSlug: {} };
+      const { data } = await supabase.from('topicos').select('id, slug, name');
+      const map = { slugToId: {}, idToSlug: {}, slugToName: {} };
       (data || []).forEach(t => {
         if (t.slug) {
           map.slugToId[t.slug] = t.id;
           map.idToSlug[t.id] = t.slug;
+          map.slugToName[t.slug] = t.name;
         }
       });
       setTopicsMap(map);
@@ -140,9 +141,8 @@ const SearchResultsPage = () => {
     }
   }, [page, fetchResults]);
 
-  const getTribunalName = (id) => {
-    return tribunais.find(t => t.id === id)?.name || id.toUpperCase();
-  };
+  const getTribunalName = (id) => tribunais.find(t => t.id === id)?.name || id.toUpperCase();
+  const getTopicName = (slug) => topicsMap?.slugToName?.[slug] || slug;
   
   const getSearchTermText = () => {
     let text = [];
@@ -199,9 +199,34 @@ const SearchResultsPage = () => {
                   Resultados da busca
                 </h1>
                 {!loading && (
-                  <p className="text-gray-600 mt-2">
-                    Exibindo {results.length} resultado(s) de {totalCount} encontrados para sua busca.
-                  </p>
+                  <>
+                    <p className="text-gray-600 mt-2">
+                      Exibindo {results.length} resultado(s) de {totalCount} encontrados.
+                    </p>
+                    {(query || tribunaisParams.length > 0 || topicsParams.length > 0) && (
+                      <div className="flex flex-wrap gap-2 mt-3 items-center">
+                        <span className="text-sm text-gray-400 shrink-0">Filtros:</span>
+                        {query && (
+                          <Badge variant="outline" className="text-sm gap-1 border-blue-300 text-blue-700 bg-blue-50">
+                            <Search className="w-3 h-3" />
+                            "{query}"
+                          </Badge>
+                        )}
+                        {tribunaisParams.map(id => (
+                          <Badge key={id} className="text-sm gap-1 bg-indigo-100 text-indigo-800 hover:bg-indigo-100 border-0">
+                            <Landmark className="w-3 h-3" />
+                            {getTribunalName(id)}
+                          </Badge>
+                        ))}
+                        {topicsParams.map(slug => (
+                          <Badge key={slug} className="text-sm gap-1 bg-purple-100 text-purple-800 hover:bg-purple-100 border-0">
+                            <Tag className="w-3 h-3" />
+                            {getTopicName(slug)}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
               </motion.div>
 
