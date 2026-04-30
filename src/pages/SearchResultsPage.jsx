@@ -16,6 +16,26 @@ const PAGE_SIZE = 100;
 
 const isUUID = (s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 
+// Highlights `term` inside an HTML string (replaces only inside text nodes)
+const highlightHtml = (html, term) => {
+  if (!term || !html) return html;
+  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`(${escaped})`, 'gi');
+  return html.replace(/>([^<]+)</g, (_, text) =>
+    '>' + text.replace(re, '<mark class="bg-yellow-100 rounded-sm px-0.5 not-italic">$1</mark>') + '<'
+  );
+};
+
+// Highlights `term` in a plain text string
+const highlightPlain = (text, term) => {
+  if (!term || !text) return text;
+  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return text.replace(
+    new RegExp(`(${escaped})`, 'gi'),
+    '<mark class="bg-yellow-100 rounded-sm px-0.5">$1</mark>'
+  );
+};
+
 const SearchResultsPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -293,9 +313,10 @@ const SearchResultsPage = () => {
                               </div>
                               
                               <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-2">
-                                  <h2 className="text-2xl font-bold text-gray-800 group-hover:text-blue-600 transition-colors">
-                                      {sumula.title}
-                                  </h2>
+                                  <h2
+                                      className="text-2xl font-bold text-gray-800 group-hover:text-blue-600 transition-colors"
+                                      dangerouslySetInnerHTML={{ __html: query ? highlightPlain(sumula.title, query) : sumula.title }}
+                                  />
                                   {sumula.topics && sumula.topics.length > 0 && (
                                       <div className="flex items-center flex-wrap gap-2" onClick={handleActionClick}>
                                           {sumula.topics.map(topic => (
@@ -309,7 +330,7 @@ const SearchResultsPage = () => {
                               
                               <div
                                 className="text-gray-600 line-clamp-3 mb-4 prose-sm"
-                                dangerouslySetInnerHTML={{ __html: sumula.content }}
+                                dangerouslySetInnerHTML={{ __html: query ? highlightHtml(sumula.content, query) : sumula.content }}
                               />
 
                               <div className="flex flex-wrap items-center justify-between text-sm text-gray-500 gap-4 mt-4 pt-4 border-t border-gray-100">
