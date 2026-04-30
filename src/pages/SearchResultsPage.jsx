@@ -316,7 +316,7 @@ const SearchResultsPage = () => {
                                   <div className="flex items-center">
                                       <Calendar className="w-4 h-4 mr-1.5" />
                                       <span>
-                                          {new Date(sumula.publish_date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}
+                                          Súmula publicada em: {new Date(sumula.publish_date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}
                                       </span>
                                   </div>
                                   <div onClick={handleActionClick} className="z-10 relative flex items-center gap-2">
