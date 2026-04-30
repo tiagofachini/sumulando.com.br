@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { MultiSelectCombobox } from '@/components/MultiSelectCombobox';
 import { supabase } from '@/lib/supabaseClient';
+import { supabaseUrl, supabaseAnonKey } from '@/lib/customSupabaseClient';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Badge } from '@/components/ui/badge';
@@ -448,8 +449,6 @@ const SumulaManager = () => {
     setGenProgress({ current: 0, total: sumulasToProcess.length, results: [] });
     setGenModalStage('processing');
 
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     const edgeFunctionUrl = `${supabaseUrl}/functions/v1/generate-faqs`;
 
     for (let i = 0; i < sumulasToProcess.length; i++) {
