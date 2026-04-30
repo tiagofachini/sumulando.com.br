@@ -10,6 +10,30 @@ BEGIN
   END IF;
 END $$;
 
+-- Fix: allow anon to update feedbacks (admin: status change, edit content)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE tablename = 'feedbacks' AND policyname = 'allow_anon_update'
+  ) THEN
+    CREATE POLICY allow_anon_update ON feedbacks
+      FOR UPDATE TO anon USING (true) WITH CHECK (true);
+  END IF;
+END $$;
+
+-- Fix: allow anon to delete feedbacks (admin: remove records)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE tablename = 'feedbacks' AND policyname = 'allow_anon_delete'
+  ) THEN
+    CREATE POLICY allow_anon_delete ON feedbacks
+      FOR DELETE TO anon USING (true);
+  END IF;
+END $$;
+
 -- Fix: recreate search_feedbacks as SECURITY DEFINER so it bypasses RLS
 -- when called by anon (admin panel uses anon key without Supabase Auth)
 CREATE OR REPLACE FUNCTION search_feedbacks(
