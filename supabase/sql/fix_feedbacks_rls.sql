@@ -1,41 +1,34 @@
--- Fix: allow anon to insert feedbacks (public submissions)
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE tablename = 'feedbacks' AND policyname = 'allow_anon_insert'
-  ) THEN
-    CREATE POLICY allow_anon_insert ON feedbacks
-      FOR INSERT TO anon WITH CHECK (true);
-  END IF;
-END $$;
+-- ============================================================
+-- Feedbacks: complete RLS + function fix
+-- Run this in Supabase Dashboard → SQL Editor
+-- ============================================================
 
--- Fix: allow anon to update feedbacks (admin: status change, edit content)
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE tablename = 'feedbacks' AND policyname = 'allow_anon_update'
-  ) THEN
-    CREATE POLICY allow_anon_update ON feedbacks
-      FOR UPDATE TO anon USING (true) WITH CHECK (true);
-  END IF;
-END $$;
+-- 1. Ensure RLS is enabled
+ALTER TABLE feedbacks ENABLE ROW LEVEL SECURITY;
 
--- Fix: allow anon to delete feedbacks (admin: remove records)
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE tablename = 'feedbacks' AND policyname = 'allow_anon_delete'
-  ) THEN
-    CREATE POLICY allow_anon_delete ON feedbacks
-      FOR DELETE TO anon USING (true);
-  END IF;
-END $$;
+-- 2. Drop any old policies cleanly before recreating
+DROP POLICY IF EXISTS allow_anon_select   ON feedbacks;
+DROP POLICY IF EXISTS allow_anon_insert   ON feedbacks;
+DROP POLICY IF EXISTS allow_anon_update   ON feedbacks;
+DROP POLICY IF EXISTS allow_anon_delete   ON feedbacks;
 
--- Fix: recreate search_feedbacks as SECURITY DEFINER so it bypasses RLS
--- when called by anon (admin panel uses anon key without Supabase Auth)
+-- 3. SELECT — required for PostgREST UPDATE/DELETE to find rows
+CREATE POLICY allow_anon_select ON feedbacks
+  FOR SELECT TO anon USING (true);
+
+-- 4. INSERT — public feedback submissions
+CREATE POLICY allow_anon_insert ON feedbacks
+  FOR INSERT TO anon WITH CHECK (true);
+
+-- 5. UPDATE — admin status change / edit
+CREATE POLICY allow_anon_update ON feedbacks
+  FOR UPDATE TO anon USING (true) WITH CHECK (true);
+
+-- 6. DELETE — admin remove record
+CREATE POLICY allow_anon_delete ON feedbacks
+  FOR DELETE TO anon USING (true);
+
+-- 7. search_feedbacks — SECURITY DEFINER so RLS is bypassed inside the function
 CREATE OR REPLACE FUNCTION search_feedbacks(
   p_search_term text DEFAULT '',
   p_status      text DEFAULT 'all'
@@ -83,3 +76,25 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION search_feedbacks(text, text) TO anon, authenticated;
+
+-- 8. get_feedback_stats — used by the admin dashboard counts
+CREATE OR REPLACE FUNCTION get_feedback_stats()
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  result json;
+BEGIN
+  SELECT json_build_object(
+    'novo',      COUNT(*) FILTER (WHERE status = 'novo'),
+    'lido',      COUNT(*) FILTER (WHERE status = 'lido'),
+    'resolvido', COUNT(*) FILTER (WHERE status = 'resolvido')
+  ) INTO result
+  FROM feedbacks;
+  RETURN result;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION get_feedback_stats() TO anon, authenticated;

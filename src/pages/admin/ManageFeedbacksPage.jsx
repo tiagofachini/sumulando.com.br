@@ -9,16 +9,17 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/lib/supabaseClient';
 import FeedbackForm from '@/components/admin/FeedbackForm';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 
 const ManageFeedbacksPage = () => {
     const { toast } = useToast();
+    const [urlParams] = useSearchParams();
     const [feedbacks, setFeedbacks] = useState([]);
     const [sumulas, setSumulas] = useState([]);
     const [faqs, setFaqs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState('all');
+    const [statusFilter, setStatusFilter] = useState(urlParams.get('status') || 'all');
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingFeedback, setEditingFeedback] = useState(null);
 
@@ -135,10 +136,8 @@ const ManageFeedbacksPage = () => {
         try {
             const { error } = await supabase.from('feedbacks').update({ status: newStatus }).eq('id', id);
             if (error) throw error;
-            
-            setFeedbacks(prev => prev.map(fb => fb.id === id ? {...fb, status: newStatus} : fb));
-
             toast({ title: "Status atualizado", description: "O status do feedback foi alterado." });
+            loadData();
         } catch (error) {
             console.error("Error updating status:", error);
             toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" });
