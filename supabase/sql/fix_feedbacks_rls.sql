@@ -77,9 +77,17 @@ $$;
 
 GRANT EXECUTE ON FUNCTION search_feedbacks(text, text) TO anon, authenticated;
 
--- 8. get_feedback_stats — used by the admin dashboard counts
-DROP FUNCTION IF EXISTS get_feedback_stats();
-CREATE OR REPLACE FUNCTION get_feedback_stats()
+-- 8. get_feedback_stats — drop by name regardless of existing signature, then recreate
+DO $$
+DECLARE
+  r record;
+BEGIN
+  FOR r IN SELECT oid::regprocedure AS sig FROM pg_proc WHERE proname = 'get_feedback_stats' LOOP
+    EXECUTE 'DROP FUNCTION ' || r.sig;
+  END LOOP;
+END $$;
+
+CREATE FUNCTION get_feedback_stats()
 RETURNS json
 LANGUAGE plpgsql
 SECURITY DEFINER
