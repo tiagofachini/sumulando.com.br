@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2 } from "lucide-react";
 
-export function FeedbackDialog({ open, onOpenChange, sumulaId, sumulaTitle, faqId, faqQuestion }) {
+export function FeedbackDialog({ open, onOpenChange, sumulaId, sumulaTitle, sumulaSlug, faqId, faqQuestion }) {
   const { register, handleSubmit, formState: { errors }, reset } = useForm();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
@@ -28,10 +28,22 @@ export function FeedbackDialog({ open, onOpenChange, sumulaId, sumulaTitle, faqI
         faq_id: faqId,
         status: 'novo',
       };
-      
+
       const { error } = await supabase.from('feedbacks').insert(feedbackData);
 
       if (error) throw error;
+
+      // Fire-and-forget email notification — failure doesn't affect UX
+      supabase.functions.invoke('notify-feedback', {
+        body: {
+          content: data.message,
+          sumula_id: sumulaId,
+          sumula_title: sumulaTitle,
+          sumula_slug: sumulaSlug,
+          faq_id: faqId,
+          faq_question: faqQuestion,
+        },
+      }).catch((err) => console.warn('notify-feedback invoke error:', err));
 
       toast({
         title: "Feedback Enviado! 🎉",
