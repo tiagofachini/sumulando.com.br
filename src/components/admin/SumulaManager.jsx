@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, Edit, ChevronLeft, ChevronRight, Search, Download, Layers, Check, ChevronsUpDown, Tag, ArrowUpDown, Sparkles, HelpCircle, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Edit, ChevronLeft, ChevronRight, Search, Download, Layers, Check, ChevronsUpDown, Tag, ArrowUpDown, Sparkles, HelpCircle, CheckCircle2, XCircle, Loader2, Brain, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { slugify } from '@/lib/utils';
@@ -51,6 +51,9 @@ const SumulaManager = () => {
   const [topicFilterOpen, setTopicFilterOpen] = useState(false);
   const [genModalStage, setGenModalStage] = useState(null); // null | 'confirm' | 'processing' | 'done'
   const [genProgress, setGenProgress] = useState({ current: 0, total: 0, results: [] });
+  const [topicModalStage, setTopicModalStage] = useState(null); // null | 'confirm' | 'processing' | 'review' | 'applying' | 'done'
+  const [topicProgress, setTopicProgress] = useState({ current: 0, total: 0 });
+  const [topicSuggestions, setTopicSuggestions] = useState([]); // [{sumuId, sumuTitle, error, suggestions:[{...accepted}]}]
 
   const [formData, setFormData] = useState({
     id: '', slug: '', title: '', content: '',
@@ -487,6 +490,115 @@ const SumulaManager = () => {
     setSelectedSumulas([]);
   };
 
+  const handleSuggestTopics = async () => {
+    const sumulasToProcess = sumulas.filter(s => selectedSumulas.includes(s.id));
+    setTopicProgress({ current: 0, total: sumulasToProcess.length });
+    setTopicSuggestions([]);
+    setTopicModalStage('processing');
+
+    const edgeFunctionUrl = `${supabaseUrl}/functions/v1/suggest-topics`;
+    const allTopics = categories.map(c => ({ id: c.id, name: c.name }));
+
+    for (let i = 0; i < sumulasToProcess.length; i++) {
+      const sumula = sumulasToProcess[i];
+      try {
+        const response = await fetch(edgeFunctionUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseAnonKey}`,
+          },
+          body: JSON.stringify({
+            sumula_id: sumula.id,
+            title: sumula.title,
+            content: sumula.content,
+            existing_topics: allTopics,
+          }),
+        });
+        const data = await response.json();
+        if (!data.success) throw new Error(data.error || 'Falha desconhecida');
+
+        const currentIds = new Set(sumula.categories);
+        const filteredSuggestions = data.suggestions
+          .filter(s => s.is_new || !currentIds.has(s.topic_id))
+          .map(s => ({ ...s, accepted: true }));
+
+        setTopicSuggestions(prev => [...prev, {
+          sumuId: sumula.id,
+          sumuTitle: sumula.title,
+          error: null,
+          suggestions: filteredSuggestions,
+        }]);
+      } catch (error) {
+        setTopicSuggestions(prev => [...prev, {
+          sumuId: sumula.id,
+          sumuTitle: sumula.title,
+          error: error.message,
+          suggestions: [],
+        }]);
+      }
+      setTopicProgress(prev => ({ ...prev, current: i + 1 }));
+    }
+
+    setTopicModalStage('review');
+  };
+
+  const toggleTopicSuggestion = (sumuIdx, sugIdx) => {
+    setTopicSuggestions(prev => prev.map((s, i) => {
+      if (i !== sumuIdx) return s;
+      return {
+        ...s,
+        suggestions: s.suggestions.map((sg, j) =>
+          j !== sugIdx ? sg : { ...sg, accepted: !sg.accepted }
+        ),
+      };
+    }));
+  };
+
+  const handleApplyTopicSuggestions = async () => {
+    setTopicModalStage('applying');
+    try {
+      const relations = [];
+      const newTopicsToCreate = [];
+
+      for (const sumuData of topicSuggestions) {
+        for (const sug of sumuData.suggestions) {
+          if (!sug.accepted) continue;
+          if (sug.is_new) {
+            newTopicsToCreate.push({ sumuId: sumuData.sumuId, name: sug.topic_name });
+          } else {
+            relations.push({ sumula_id: sumuData.sumuId, topico_id: sug.topic_id });
+          }
+        }
+      }
+
+      for (const newTopic of newTopicsToCreate) {
+        const { data: topicData, error: topicError } = await supabase
+          .from('topicos')
+          .insert({ name: newTopic.name })
+          .select('id')
+          .single();
+        if (topicError) throw topicError;
+        relations.push({ sumula_id: newTopic.sumuId, topico_id: topicData.id });
+      }
+
+      if (relations.length > 0) {
+        const { error } = await supabase
+          .from('sumula_topicos')
+          .upsert(relations, { onConflict: 'sumula_id, topico_id', ignoreDuplicates: true });
+        if (error) throw error;
+      }
+
+      toast({ title: 'Tópicos aplicados!', description: `${relations.length} associações criadas com sucesso.` });
+      setTopicModalStage('done');
+      loadData();
+      setSelectedSumulas([]);
+    } catch (error) {
+      toast({ title: 'Erro ao aplicar', description: error.message, variant: 'destructive' });
+      setTopicModalStage('review');
+    }
+  };
+
   const getTopicFilterLabel = () => {
     if (topicFilter === 'all') return 'Todos os Tópicos';
     if (topicFilter === 'no-topics') return 'Sem Tópicos';
@@ -666,6 +778,13 @@ const SumulaManager = () => {
                 >
                   <Sparkles className="w-4 h-4 mr-2" />
                   Gerar FAQs com IA
+                </Button>
+                <Button
+                  onClick={() => setTopicModalStage('confirm')}
+                  className="w-full sm:w-auto bg-gradient-to-r from-teal-600 to-green-600 hover:from-teal-700 hover:to-green-700 text-white"
+                >
+                  <Brain className="w-4 h-4 mr-2" />
+                  Sugerir Tópicos com IA
                 </Button>
               </div>
             </motion.div>
@@ -880,6 +999,168 @@ const SumulaManager = () => {
             </DialogFooter>
           </>
         )}
+      </DialogContent>
+    </Dialog>
+
+    {/* Topic Suggestion Modal */}
+    <Dialog open={topicModalStage !== null} onOpenChange={(open) => { if (!open && topicModalStage !== 'processing' && topicModalStage !== 'applying') setTopicModalStage(null); }}>
+      <DialogContent className="sm:max-w-[600px] max-h-[85vh] flex flex-col">
+
+        {topicModalStage === 'confirm' && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Brain className="w-5 h-5 text-teal-600" />
+                Sugerir Tópicos com IA
+              </DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              <p className="text-gray-700">
+                Você selecionou <strong>{selectedSumulas.length} súmula(s)</strong>. O Claude Haiku irá analisar cada uma e sugerir de 1 a 3 tópicos relevantes.
+              </p>
+              <p className="text-sm text-gray-500 mt-2">
+                As sugestões serão exibidas para revisão antes de qualquer alteração no banco de dados. Tópicos já atribuídos à súmula serão ignorados automaticamente.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setTopicModalStage(null)}>Cancelar</Button>
+              <Button onClick={handleSuggestTopics} className="bg-gradient-to-r from-teal-600 to-green-600 hover:from-teal-700 hover:to-green-700">
+                <Brain className="w-4 h-4 mr-2" />
+                Analisar Agora
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+
+        {topicModalStage === 'processing' && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Loader2 className="w-5 h-5 text-teal-600 animate-spin" />
+                Analisando Súmulas...
+              </DialogTitle>
+            </DialogHeader>
+            <div className="py-4 space-y-3">
+              <p className="text-sm text-gray-600">
+                Processando {topicProgress.current} de {topicProgress.total} súmulas...
+              </p>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-gradient-to-r from-teal-600 to-green-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${topicProgress.total > 0 ? (topicProgress.current / topicProgress.total) * 100 : 0}%` }}
+                />
+              </div>
+              <div className="max-h-48 overflow-y-auto space-y-1">
+                {topicSuggestions.map((s, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm">
+                    {s.error
+                      ? <XCircle className="w-4 h-4 text-red-500 shrink-0" />
+                      : <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
+                    }
+                    <span className="truncate text-gray-700">{s.sumuTitle}</span>
+                    {s.error
+                      ? <span className="text-red-500 text-xs shrink-0">{s.error}</span>
+                      : <span className="text-teal-600 text-xs shrink-0">{s.suggestions.length} sugestão(ões)</span>
+                    }
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {topicModalStage === 'review' && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Brain className="w-5 h-5 text-teal-600" />
+                Revisar Sugestões de Tópicos
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-gray-500 px-1">Desmarque os tópicos que não deseja aplicar. Tópicos marcados como <span className="font-semibold text-orange-600">Novo</span> serão criados no banco de dados.</p>
+            <div className="flex-1 overflow-y-auto space-y-4 py-2 pr-1">
+              {topicSuggestions.map((sumuData, sumuIdx) => (
+                <div key={sumuData.sumuId} className="border border-gray-200 rounded-xl p-4 bg-gray-50">
+                  <p className="font-semibold text-gray-800 text-sm mb-3 line-clamp-1">{sumuData.sumuTitle}</p>
+                  {sumuData.error ? (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{sumuData.error}</span>
+                    </div>
+                  ) : sumuData.suggestions.length === 0 ? (
+                    <p className="text-sm text-gray-400 italic">Todos os tópicos sugeridos já estão atribuídos.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {sumuData.suggestions.map((sug, sugIdx) => (
+                        <div key={sugIdx} className="flex items-start gap-3 bg-white rounded-lg p-3 border border-gray-100">
+                          <Checkbox
+                            checked={sug.accepted}
+                            onCheckedChange={() => toggleTopicSuggestion(sumuIdx, sugIdx)}
+                            className="mt-0.5"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-sm text-gray-800">{sug.topic_name}</span>
+                              {sug.is_new && (
+                                <Badge className="bg-orange-100 text-orange-700 text-xs px-1.5 py-0">Novo</Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-500 mt-0.5">{sug.reason}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <DialogFooter className="pt-2">
+              <Button variant="outline" onClick={() => setTopicModalStage(null)}>Cancelar</Button>
+              <Button
+                onClick={handleApplyTopicSuggestions}
+                disabled={!topicSuggestions.some(s => s.suggestions.some(sg => sg.accepted))}
+                className="bg-gradient-to-r from-teal-600 to-green-600 hover:from-teal-700 hover:to-green-700"
+              >
+                <Check className="w-4 h-4 mr-2" />
+                Aplicar Selecionados
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+
+        {topicModalStage === 'applying' && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Loader2 className="w-5 h-5 text-teal-600 animate-spin" />
+                Aplicando Tópicos...
+              </DialogTitle>
+            </DialogHeader>
+            <div className="py-8 flex justify-center">
+              <p className="text-gray-500 text-sm">Salvando associações no banco de dados...</p>
+            </div>
+          </>
+        )}
+
+        {topicModalStage === 'done' && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-green-600" />
+                Tópicos Aplicados com Sucesso
+              </DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              <p className="text-sm text-gray-600">
+                Os tópicos selecionados foram associados às súmulas. A lista foi atualizada automaticamente.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setTopicModalStage(null)}>Fechar</Button>
+            </DialogFooter>
+          </>
+        )}
+
       </DialogContent>
     </Dialog>
     </div>
