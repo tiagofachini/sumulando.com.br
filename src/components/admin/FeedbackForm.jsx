@@ -125,19 +125,19 @@ const FeedbackForm = ({ feedback, onSave, onCancel, sumulas, faqs }) => {
              <Combobox
                 options={sumulaOptions}
                 value={selectedSumulaId}
-                onChange={handleSumulaChange}
+                onValueChange={handleSumulaChange}
                 placeholder="Selecione uma súmula..."
                 searchPlaceholder="Buscar súmula..."
             />
         </div>
-        
+
       {feedbackType === 'faq' && (
         <div>
             <Label>FAQ Associada (Obrigatório)</Label>
             <Combobox
                 options={faqOptions}
                 value={selectedFaqId}
-                onChange={setSelectedFaqId}
+                onValueChange={setSelectedFaqId}
                 placeholder="Selecione uma FAQ..."
                 searchPlaceholder="Buscar FAQ..."
                 disabled={!selectedSumulaId}
