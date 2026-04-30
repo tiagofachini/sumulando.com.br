@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/accordion"
 import { supabase } from '@/lib/supabaseClient';
 
-const FeedbackButton = ({ sumulaId, sumulaTitle, faqId, faqQuestion }) => {
+const FeedbackButton = ({ sumulaId, sumulaTitle, sumulaSlug, faqId, faqQuestion }) => {
     const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
     return (
@@ -46,6 +46,7 @@ const FeedbackButton = ({ sumulaId, sumulaTitle, faqId, faqQuestion }) => {
                 onOpenChange={setIsFeedbackOpen}
                 sumulaId={sumulaId}
                 sumulaTitle={sumulaTitle}
+                sumulaSlug={sumulaSlug}
                 faqId={faqId}
                 faqQuestion={faqQuestion}
             />
@@ -290,7 +291,7 @@ const SumulaDetailPage = () => {
                             url={currentUrl} 
                         />
                       </div>
-                      <FeedbackButton sumulaId={sumula.id} sumulaTitle={sumula.title} />
+                      <FeedbackButton sumulaId={sumula.id} sumulaTitle={sumula.title} sumulaSlug={sumula.slug} />
                   </CardFooter>
                 </Card>
 
@@ -317,10 +318,11 @@ const SumulaDetailPage = () => {
                               <AccordionContent className="text-base text-gray-600 leading-relaxed pt-2 prose">
                                 {faq.answer}
                                 <div className="not-prose text-right mt-4">
-                                     <FeedbackButton 
-                                        faqId={faq.id} 
+                                     <FeedbackButton
+                                        faqId={faq.id}
                                         faqQuestion={faq.question}
                                         sumulaId={sumula.id}
+                                        sumulaSlug={sumula.slug}
                                     />
                                 </div>
                               </AccordionContent>
