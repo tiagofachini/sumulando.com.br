@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, Edit, ChevronLeft, ChevronRight, Search, Download, Layers, Check, ChevronsUpDown, Tag, ArrowUpDown } from 'lucide-react';
+import { Plus, Trash2, Edit, ChevronLeft, ChevronRight, Search, Download, Layers, Check, ChevronsUpDown, Tag, ArrowUpDown, Sparkles, HelpCircle, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { slugify } from '@/lib/utils';
@@ -14,6 +14,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,12 +41,15 @@ const SumulaManager = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [tribunalFilter, setTribunalFilter] = useState('all');
   const [topicFilter, setTopicFilter] = useState('all');
+  const [faqFilter, setFaqFilter] = useState('all');
   const [sortOption, setSortOption] = useState('createdAt_desc');
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [selectedSumulas, setSelectedSumulas] = useState([]);
   const [bulkTopics, setBulkTopics] = useState([]);
   const [topicFilterOpen, setTopicFilterOpen] = useState(false);
+  const [genModalStage, setGenModalStage] = useState(null); // null | 'confirm' | 'processing' | 'done'
+  const [genProgress, setGenProgress] = useState({ current: 0, total: 0, results: [] });
 
   const [formData, setFormData] = useState({
     id: '', slug: '', title: '', content: '',
@@ -70,7 +74,8 @@ const SumulaManager = () => {
             .select(`
               *,
               tribunais(name),
-              sumula_topicos(topicos(id, name))
+              sumula_topicos(topicos(id, name)),
+              faqs(id)
             `)
             .order('created_at', { ascending: false })
             .range(offset, offset + CHUNK_SIZE - 1);
@@ -98,6 +103,7 @@ const SumulaManager = () => {
         categoryObjects: s.sumula_topicos.map(st => st.topicos).filter(Boolean),
         createdAt: s.created_at,
         youtubeUrl: s.youtube_url,
+        faqCount: s.faqs?.length || 0,
       }));
       setSumulas(formattedSumulas);
 
@@ -331,7 +337,7 @@ const SumulaManager = () => {
         sumula.content.toLowerCase().includes(searchTerm.toLowerCase());
 
       const tribunalMatch = tribunalFilter === 'all' || sumula.tribunal === tribunalFilter;
-      
+
       let topicMatch = true;
       if (topicFilter === 'no-topics') {
         topicMatch = !sumula.categories || sumula.categories.length === 0;
@@ -339,7 +345,14 @@ const SumulaManager = () => {
         topicMatch = sumula.categories && sumula.categories.includes(topicFilter);
       }
 
-      return searchTermMatch && tribunalMatch && topicMatch;
+      let faqMatch = true;
+      if (faqFilter === 'no-faqs') {
+        faqMatch = sumula.faqCount === 0;
+      } else if (faqFilter === 'with-faqs') {
+        faqMatch = sumula.faqCount > 0;
+      }
+
+      return searchTermMatch && tribunalMatch && topicMatch && faqMatch;
     });
 
     const [key, direction] = sortOption.split('_');
@@ -362,12 +375,12 @@ const SumulaManager = () => {
       return 0;
     });
 
-  }, [sumulas, searchTerm, tribunalFilter, topicFilter, sortOption]);
+  }, [sumulas, searchTerm, tribunalFilter, topicFilter, faqFilter, sortOption]);
 
   useEffect(() => {
     setCurrentPage(1);
     setSelectedSumulas([]);
-  }, [searchTerm, tribunalFilter, topicFilter, sortOption]);
+  }, [searchTerm, tribunalFilter, topicFilter, faqFilter, sortOption]);
 
   const totalPages = Math.ceil(filteredAndSortedSumulas.length / SUMULAS_PER_PAGE);
   const paginatedSumulas = filteredAndSortedSumulas.slice((currentPage - 1) * SUMULAS_PER_PAGE, currentPage * SUMULAS_PER_PAGE);
@@ -430,6 +443,51 @@ const SumulaManager = () => {
     setBulkTopics(selectedIds);
   };
 
+  const handleGenerateFaqs = async () => {
+    const sumulasToProcess = sumulas.filter(s => selectedSumulas.includes(s.id));
+    setGenProgress({ current: 0, total: sumulasToProcess.length, results: [] });
+    setGenModalStage('processing');
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    const edgeFunctionUrl = `${supabaseUrl}/functions/v1/generate-faqs`;
+
+    for (let i = 0; i < sumulasToProcess.length; i++) {
+      const sumula = sumulasToProcess[i];
+      try {
+        const response = await fetch(edgeFunctionUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseAnonKey}`,
+          },
+          body: JSON.stringify({
+            sumula_id: sumula.id,
+            title: sumula.title,
+            content: sumula.content,
+          }),
+        });
+        const data = await response.json();
+        if (!data.success) throw new Error(data.error || 'Falha desconhecida');
+        setGenProgress(prev => ({
+          ...prev,
+          current: i + 1,
+          results: [...prev.results, { title: sumula.title, status: 'ok', count: data.count }],
+        }));
+      } catch (error) {
+        setGenProgress(prev => ({
+          ...prev,
+          current: i + 1,
+          results: [...prev.results, { title: sumula.title, status: 'error', error: error.message }],
+        }));
+      }
+    }
+
+    setGenModalStage('done');
+    loadData();
+    setSelectedSumulas([]);
+  };
+
   const getTopicFilterLabel = () => {
     if (topicFilter === 'all') return 'Todos os Tópicos';
     if (topicFilter === 'no-topics') return 'Sem Tópicos';
@@ -479,7 +537,7 @@ const SumulaManager = () => {
          <h2 className="text-2xl font-bold text-gray-800 mb-4">
             Súmulas Cadastradas ({filteredAndSortedSumulas.length})
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
           <div className="relative md:col-span-2 lg:col-span-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
             <Input
@@ -550,7 +608,20 @@ const SumulaManager = () => {
               </Command>
             </PopoverContent>
           </Popover>
-           <Select value={sortOption} onValueChange={setSortOption}>
+          <Select value={faqFilter} onValueChange={setFaqFilter}>
+            <SelectTrigger className="h-12">
+              <div className="flex items-center gap-2">
+                <HelpCircle className="h-4 w-4 opacity-50"/>
+                <SelectValue placeholder="Filtrar por FAQ..." />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as Súmulas</SelectItem>
+              <SelectItem value="no-faqs">Sem FAQs</SelectItem>
+              <SelectItem value="with-faqs">Com FAQs</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={sortOption} onValueChange={setSortOption}>
             <SelectTrigger className="h-12">
               <div className="flex items-center gap-2">
                 <ArrowUpDown className="h-4 w-4 opacity-50"/>
@@ -590,6 +661,13 @@ const SumulaManager = () => {
                   <Layers className="w-4 h-4 mr-2" />
                   Aplicar
                 </Button>
+                <Button
+                  onClick={() => setGenModalStage('confirm')}
+                  className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Gerar FAQs com IA
+                </Button>
               </div>
             </motion.div>
           )}
@@ -626,9 +704,15 @@ const SumulaManager = () => {
                     />
                     <div className="flex-1 flex justify-between items-start">
                         <div className="flex-1 pr-4">
-                        <span className="px-3 py-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white text-xs font-semibold rounded-full">
-                            {sumula.tribunalName}
-                        </span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="px-3 py-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white text-xs font-semibold rounded-full">
+                              {sumula.tribunalName}
+                          </span>
+                          <Badge variant={sumula.faqCount > 0 ? 'secondary' : 'outline'} className={`flex items-center gap-1 text-xs ${sumula.faqCount > 0 ? 'bg-green-100 text-green-800' : 'text-gray-400'}`}>
+                            <HelpCircle className="w-3 h-3" />
+                            {sumula.faqCount > 0 ? `${sumula.faqCount} FAQ${sumula.faqCount > 1 ? 's' : ''}` : 'Sem FAQs'}
+                          </Badge>
+                        </div>
                         <Link to={`/sumula/${sumula.slug}`} target="_blank">
                             <h3 className="text-lg font-bold text-gray-800 mt-2 mb-1 hover:text-blue-600 transition-colors">
                             {sumula.title}
@@ -697,6 +781,108 @@ const SumulaManager = () => {
             </>
         )}
       </div>
+
+    {/* FAQ Generation Modal */}
+    <Dialog open={genModalStage !== null} onOpenChange={(open) => { if (!open && genModalStage !== 'processing') setGenModalStage(null); }}>
+      <DialogContent className="sm:max-w-[500px]">
+        {genModalStage === 'confirm' && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-purple-600" />
+                Gerar FAQs com IA
+              </DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              <p className="text-gray-700">
+                Você selecionou <strong>{selectedSumulas.length} súmula(s)</strong>. O Claude Haiku irá gerar 3 FAQs para cada uma.
+              </p>
+              <p className="text-sm text-gray-500 mt-2">
+                Custo estimado: ~{selectedSumulas.length * 3} FAQs geradas com modelo Haiku.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setGenModalStage(null)}>Cancelar</Button>
+              <Button onClick={handleGenerateFaqs} className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
+                <Sparkles className="w-4 h-4 mr-2" />
+                Gerar Agora
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+
+        {genModalStage === 'processing' && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Loader2 className="w-5 h-5 text-purple-600 animate-spin" />
+                Gerando FAQs...
+              </DialogTitle>
+            </DialogHeader>
+            <div className="py-4 space-y-3">
+              <p className="text-sm text-gray-600">
+                Processando {genProgress.current} de {genProgress.total} súmulas...
+              </p>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${genProgress.total > 0 ? (genProgress.current / genProgress.total) * 100 : 0}%` }}
+                />
+              </div>
+              <div className="max-h-48 overflow-y-auto space-y-1">
+                {genProgress.results.map((result, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm">
+                    {result.status === 'ok'
+                      ? <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
+                      : <XCircle className="w-4 h-4 text-red-500 shrink-0" />
+                    }
+                    <span className="truncate text-gray-700">{result.title}</span>
+                    {result.status === 'ok'
+                      ? <span className="text-green-600 text-xs shrink-0">+{result.count} FAQs</span>
+                      : <span className="text-red-500 text-xs shrink-0">{result.error}</span>
+                    }
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {genModalStage === 'done' && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-green-600" />
+                Geração Concluída
+              </DialogTitle>
+            </DialogHeader>
+            <div className="py-4 space-y-3">
+              <p className="text-sm text-gray-600">
+                {genProgress.results.filter(r => r.status === 'ok').length} de {genProgress.total} súmulas processadas com sucesso.
+              </p>
+              <div className="max-h-48 overflow-y-auto space-y-1">
+                {genProgress.results.map((result, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm">
+                    {result.status === 'ok'
+                      ? <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
+                      : <XCircle className="w-4 h-4 text-red-500 shrink-0" />
+                    }
+                    <span className="truncate text-gray-700">{result.title}</span>
+                    {result.status === 'ok'
+                      ? <span className="text-green-600 text-xs shrink-0">+{result.count} FAQs</span>
+                      : <span className="text-red-500 text-xs shrink-0">{result.error}</span>
+                    }
+                  </div>
+                ))}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setGenModalStage(null)}>Fechar</Button>
+            </DialogFooter>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
     </div>
   );
 };
