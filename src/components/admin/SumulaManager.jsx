@@ -335,10 +335,23 @@ const SumulaManager = () => {
   }
   
   const filteredAndSortedSumulas = useMemo(() => {
+    const termLower = searchTerm.toLowerCase();
+
+    const getTitleRelevance = (sumula) => {
+      if (!termLower) return 0;
+      const title = sumula.title.toLowerCase();
+      try {
+        const escaped = termLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        if (new RegExp(`\\b${escaped}\\b`).test(title)) return 80;
+      } catch (_) { /* ignore invalid regex */ }
+      if (title.includes(termLower)) return 70;
+      return 30; // content match
+    };
+
     const filtered = sumulas.filter(sumula => {
-      const searchTermMatch = searchTerm.toLowerCase() === '' ||
-        sumula.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        sumula.content.toLowerCase().includes(searchTerm.toLowerCase());
+      const searchTermMatch = termLower === '' ||
+        sumula.title.toLowerCase().includes(termLower) ||
+        sumula.content.toLowerCase().includes(termLower);
 
       const tribunalMatch = tribunalFilter === 'all' || sumula.tribunal === tribunalFilter;
 
@@ -360,22 +373,20 @@ const SumulaManager = () => {
     });
 
     const [key, direction] = sortOption.split('_');
-    
+
     return [...filtered].sort((a, b) => {
+      // When searching, relevance is primary sort key
+      if (termLower) {
+        const scoreDiff = getTitleRelevance(b) - getTitleRelevance(a);
+        if (scoreDiff !== 0) return scoreDiff;
+      }
+
+      // User-chosen sort as secondary (or primary when not searching)
       let valA = a[key];
       let valB = b[key];
-
-      if (key === 'title') {
-        valA = valA.toLowerCase();
-        valB = valB.toLowerCase();
-      }
-
-      if (valA < valB) {
-        return direction === 'asc' ? -1 : 1;
-      }
-      if (valA > valB) {
-        return direction === 'asc' ? 1 : -1;
-      }
+      if (key === 'title') { valA = valA.toLowerCase(); valB = valB.toLowerCase(); }
+      if (valA < valB) return direction === 'asc' ? -1 : 1;
+      if (valA > valB) return direction === 'asc' ? 1 : -1;
       return 0;
     });
 
