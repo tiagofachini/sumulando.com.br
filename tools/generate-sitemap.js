@@ -72,15 +72,15 @@ async function generateSitemap() {
     console.error('[sitemap] ! institutional_pages:', err.message);
   }
 
-  // Topics — fetch all rows, filter nulls in JS
+  // Topics
   try {
     const { count: topicCount } = await supabase.from('topicos').select('*', { count: 'exact', head: true });
     console.log(`[sitemap] topicos total rows: ${topicCount}`);
-    const topics = await fetchAll('topicos', 'id, name, slug, updated_at');
+    const topics = await fetchAll('topicos', 'id, name, slug');
     const withSlug = topics.filter(t => t.slug);
     withSlug.forEach(t => urls.push({
       loc: `${SITE_URL}/busca?topico=${t.slug}`,
-      lastmod: toDate(t.updated_at),
+      lastmod: today,
       changefreq: 'monthly',
       priority: '0.6',
     }));
@@ -89,15 +89,15 @@ async function generateSitemap() {
     console.error('[sitemap] ! topicos:', err.message);
   }
 
-  // Sumulas — paginated
+  // Sumulas — paginated, uses publish_date
   try {
     const { count: sumulaCount } = await supabase.from('sumulas').select('*', { count: 'exact', head: true });
     console.log(`[sitemap] sumulas total rows: ${sumulaCount}`);
-    const sumulas = await fetchAll('sumulas', 'id, slug, updated_at');
+    const sumulas = await fetchAll('sumulas', 'id, slug, publish_date');
     const withSlug = sumulas.filter(s => s.slug);
     withSlug.forEach(s => urls.push({
       loc: `${SITE_URL}/sumula/${s.slug}`,
-      lastmod: toDate(s.updated_at),
+      lastmod: toDate(s.publish_date),
       changefreq: 'monthly',
       priority: '0.7',
     }));
