@@ -79,6 +79,19 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const supabaseAdmin = createClient(supabaseUrl!, supabaseServiceKey!);
 
+    // PRE-FLIGHT: check for existing FAQs before consuming AI credits
+    const { count: existingCount, error: countError } = await supabaseAdmin
+      .from('faqs')
+      .select('id', { count: 'exact', head: true })
+      .eq('sumula_id', sumula_id);
+    if (countError) throw countError;
+    if (existingCount && existingCount > 0) {
+      return new Response(
+        JSON.stringify({ success: true, count: 0, skipped: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Strip HTML tags from content for cleaner input
     const plainContent = content.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
 

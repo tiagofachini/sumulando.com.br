@@ -460,8 +460,21 @@ const SumulaManager = () => {
   };
 
   const handleGenerateFaqs = async () => {
-    const sumulasToProcess = sumulas.filter(s => selectedSumulas.includes(s.id));
-    setGenProgress({ current: 0, total: sumulasToProcess.length, results: [] });
+    // PRE-VALIDATION: only process súmulas that don't already have FAQs
+    const allSelected = sumulas.filter(s => selectedSumulas.includes(s.id));
+    const sumulasToProcess = allSelected.filter(s => s.faqCount === 0);
+    const skippedCount = allSelected.length - sumulasToProcess.length;
+
+    if (sumulasToProcess.length === 0) {
+      toast({
+        title: 'Nenhuma súmula a processar',
+        description: 'Todas as súmulas selecionadas já possuem FAQs. Nenhum crédito de IA foi consumido.',
+      });
+      setGenModalStage(null);
+      return;
+    }
+
+    setGenProgress({ current: 0, total: sumulasToProcess.length, results: [], skippedCount });
     setGenModalStage('processing');
 
     const edgeFunctionUrl = `${supabaseUrl}/functions/v1/generate-faqs`;
@@ -503,6 +516,18 @@ const SumulaManager = () => {
   };
 
   const handleSuggestTopics = async () => {
+    // PRE-VALIDATION: topic list must be loaded before consuming AI credits.
+    // Without it, every AI suggestion would be "new", generating garbage data.
+    if (categories.length === 0) {
+      toast({
+        title: 'Lista de tópicos não carregada',
+        description: 'Recarregue a página antes de usar a sugestão de tópicos. Nenhum crédito foi consumido.',
+        variant: 'destructive',
+      });
+      setTopicModalStage(null);
+      return;
+    }
+
     const sumulasToProcess = sumulas.filter(s => selectedSumulas.includes(s.id));
     setTopicProgress({ current: 0, total: sumulasToProcess.length });
     setTopicSuggestions([]);
@@ -943,7 +968,11 @@ const SumulaManager = () => {
     {/* FAQ Generation Modal */}
     <Dialog open={genModalStage !== null} onOpenChange={(open) => { if (!open && genModalStage !== 'processing') setGenModalStage(null); }}>
       <DialogContent className="sm:max-w-[500px]">
-        {genModalStage === 'confirm' && (
+        {genModalStage === 'confirm' && (() => {
+          const allSelected = sumulas.filter(s => selectedSumulas.includes(s.id));
+          const toProcess = allSelected.filter(s => s.faqCount === 0).length;
+          const alreadyHave = allSelected.length - toProcess;
+          return (
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -951,13 +980,29 @@ const SumulaManager = () => {
                 Gerar FAQs com IA
               </DialogTitle>
             </DialogHeader>
-            <div className="py-4">
+            <div className="py-4 space-y-3">
               <p className="text-gray-700">
-                Você selecionou <strong>{selectedSumulas.length} súmula(s)</strong>. O Claude Haiku irá gerar 3 FAQs para cada uma.
+                Você selecionou <strong>{selectedSumulas.length} súmula(s)</strong>.
               </p>
-              <p className="text-sm text-gray-500 mt-2">
-                Custo estimado: ~{selectedSumulas.length * 3} FAQs geradas com modelo Haiku.
-              </p>
+              <div className="rounded-lg border border-gray-200 divide-y divide-gray-100 text-sm">
+                <div className="flex justify-between px-3 py-2">
+                  <span className="text-green-700 font-medium">Serão processadas (sem FAQs)</span>
+                  <strong className="text-green-700">{toProcess}</strong>
+                </div>
+                {alreadyHave > 0 && (
+                  <div className="flex justify-between px-3 py-2 bg-gray-50">
+                    <span className="text-gray-500">Já possuem FAQs (serão ignoradas)</span>
+                    <span className="text-gray-500">{alreadyHave}</span>
+                  </div>
+                )}
+              </div>
+              {toProcess === 0 ? (
+                <p className="text-sm text-amber-600">Todas as súmulas selecionadas já possuem FAQs. Nenhum crédito será consumido.</p>
+              ) : (
+                <p className="text-sm text-gray-500">
+                  Custo estimado: ~{toProcess * 3} FAQs geradas com modelo Haiku.
+                </p>
+              )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setGenModalStage(null)}>Cancelar</Button>
@@ -967,7 +1012,8 @@ const SumulaManager = () => {
               </Button>
             </DialogFooter>
           </>
-        )}
+          );
+        })()}
 
         {genModalStage === 'processing' && (
           <>
@@ -979,7 +1025,8 @@ const SumulaManager = () => {
             </DialogHeader>
             <div className="py-4 space-y-3">
               <p className="text-sm text-gray-600">
-                Processando {genProgress.current} de {genProgress.total} súmulas...
+                Processando {genProgress.current} de {genProgress.total} súmulas
+                {genProgress.skippedCount > 0 && ` (${genProgress.skippedCount} ignoradas por já possuírem FAQs)`}...
               </p>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
@@ -1016,7 +1063,8 @@ const SumulaManager = () => {
             </DialogHeader>
             <div className="py-4 space-y-3">
               <p className="text-sm text-gray-600">
-                {genProgress.results.filter(r => r.status === 'ok').length} de {genProgress.total} súmulas processadas com sucesso.
+                {genProgress.results.filter(r => r.status === 'ok').length} de {genProgress.total} súmulas processadas com sucesso
+                {genProgress.skippedCount > 0 && ` · ${genProgress.skippedCount} ignoradas (já tinham FAQs)`}.
               </p>
               <div className="max-h-48 overflow-y-auto space-y-1">
                 {genProgress.results.map((result, i) => (

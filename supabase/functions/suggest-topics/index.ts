@@ -20,6 +20,15 @@ Deno.serve(async (req) => {
       );
     }
 
+    // PRE-FLIGHT: topics list must be non-empty before consuming AI credits.
+    // An empty list would cause all AI suggestions to be marked as "new", generating garbage data.
+    if (!Array.isArray(existing_topics) || existing_topics.length === 0) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'existing_topics deve ser uma lista não vazia. Carregue os tópicos antes de chamar esta função.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY_SUMULANDO');
     if (!anthropicApiKey) throw new Error('ANTHROPIC_API_KEY_SUMULANDO not configured');
 
