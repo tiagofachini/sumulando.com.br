@@ -530,8 +530,18 @@ const SumulaManager = () => {
         const data = await response.json();
         if (!data.success) throw new Error(data.error || 'Falha desconhecida');
 
+        const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const normalizedSuggestions = data.suggestions.map(s => {
+          if (!s.is_new && (!s.topic_id || !UUID_RE.test(s.topic_id))) {
+            const match = allTopics.find(t => t.name.toLowerCase() === s.topic_name.toLowerCase());
+            if (match) return { ...s, topic_id: match.id };
+            return { ...s, topic_id: null, is_new: true };
+          }
+          return s;
+        });
+
         const currentIds = new Set(sumula.categories);
-        const filteredSuggestions = data.suggestions
+        const filteredSuggestions = normalizedSuggestions
           .filter(s => s.is_new || !currentIds.has(s.topic_id))
           .map(s => ({ ...s, accepted: true }));
 
