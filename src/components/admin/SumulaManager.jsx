@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 
-const SUMULAS_PER_PAGE = 10;
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 const SumulaManager = () => {
   const { toast } = useToast();
@@ -45,6 +45,7 @@ const SumulaManager = () => {
   const [faqFilter, setFaqFilter] = useState('all');
   const [sortOption, setSortOption] = useState('createdAt_desc');
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [loading, setLoading] = useState(true);
   const [selectedSumulas, setSelectedSumulas] = useState([]);
   const [bulkTopics, setBulkTopics] = useState([]);
@@ -397,8 +398,8 @@ const SumulaManager = () => {
     setSelectedSumulas([]);
   }, [searchTerm, tribunalFilter, topicFilter, faqFilter, sortOption]);
 
-  const totalPages = Math.ceil(filteredAndSortedSumulas.length / SUMULAS_PER_PAGE);
-  const paginatedSumulas = filteredAndSortedSumulas.slice((currentPage - 1) * SUMULAS_PER_PAGE, currentPage * SUMULAS_PER_PAGE);
+  const totalPages = Math.ceil(filteredAndSortedSumulas.length / pageSize);
+  const paginatedSumulas = filteredAndSortedSumulas.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -896,17 +897,35 @@ const SumulaManager = () => {
                 )}
                 </div>
 
-                {totalPages > 1 && (
-                <div className="flex items-center justify-center space-x-4 mt-8">
-                    <Button variant="outline" size="icon" onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>
-                    <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <span className="font-medium text-gray-700">Página {currentPage} de {totalPages}</span>
-                    <Button variant="outline" size="icon" onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}>
-                    <ChevronRight className="h-4 w-4" />
-                    </Button>
+                <div className="flex items-center justify-between mt-8 flex-wrap gap-4">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <span>Itens por página:</span>
+                    <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setCurrentPage(1); }}>
+                      <SelectTrigger className="h-8 w-20">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PAGE_SIZE_OPTIONS.map(n => (
+                          <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <span className="text-gray-400">
+                      ({filteredAndSortedSumulas.length} total)
+                    </span>
+                  </div>
+                  {totalPages > 1 && (
+                    <div className="flex items-center gap-3">
+                      <Button variant="outline" size="icon" onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <span className="font-medium text-gray-700">Página {currentPage} de {totalPages}</span>
+                      <Button variant="outline" size="icon" onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}>
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
-                )}
             </>
         )}
       </div>
