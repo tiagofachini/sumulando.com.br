@@ -587,7 +587,7 @@ const SumulaManager = () => {
       for (const newTopic of newTopicsToCreate) {
         const { data: topicData, error: topicError } = await supabase
           .from('topicos')
-          .insert({ name: newTopic.name })
+          .upsert({ name: newTopic.name }, { onConflict: 'name', ignoreDuplicates: false })
           .select('id')
           .single();
         if (topicError) throw topicError;
