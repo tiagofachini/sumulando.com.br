@@ -555,11 +555,19 @@ const SumulaManager = () => {
         const data = await response.json();
         if (!data.success) throw new Error(data.error || 'Falha desconhecida');
 
+        // Layer 1: validate AI-returned topic_id by format AND existence in the DB-loaded list.
+        // A syntactically valid UUID that doesn't exist in `topicos` would violate the FK constraint.
         const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const topicIdSet = new Set(allTopics.map(t => t.id));
         const normalizedSuggestions = data.suggestions.map(s => {
-          if (!s.is_new && (!s.topic_id || !UUID_RE.test(s.topic_id))) {
+          if (!s.is_new) {
+            if (s.topic_id && UUID_RE.test(s.topic_id) && topicIdSet.has(s.topic_id)) {
+              return s; // confirmed: valid format + exists in DB
+            }
+            // UUID malformed or not found in DB — try name-based fallback
             const match = allTopics.find(t => t.name.toLowerCase() === s.topic_name.toLowerCase());
-            if (match) return { ...s, topic_id: match.id };
+            if (match) return { ...s, topic_id: match.id, is_new: false };
+            // Genuinely new topic
             return { ...s, topic_id: null, is_new: true };
           }
           return s;
@@ -626,17 +634,37 @@ const SumulaManager = () => {
           .select('id')
           .single();
         if (topicError) throw topicError;
-        relations.push({ sumula_id: newTopic.sumuId, topico_id: topicData.id });
+
+        // Layer 3: upsert can return null on no-op updates; fallback to SELECT by name
+        let topicId = topicData?.id;
+        if (!topicId) {
+          const { data: found, error: findError } = await supabase
+            .from('topicos').select('id').eq('name', newTopic.name).single();
+          if (findError || !found?.id) throw new Error(`Não foi possível criar ou encontrar o tópico "${newTopic.name}"`);
+          topicId = found.id;
+        }
+        relations.push({ sumula_id: newTopic.sumuId, topico_id: topicId });
       }
 
-      if (relations.length > 0) {
+      // Layer 2: final guard — drop any relation whose topico_id is not in the loaded categories.
+      // Prevents FK violations from AI hallucinations that slipped through layer 1.
+      const validTopicIds = new Set(categories.map(c => c.id));
+      const safeRelations = relations.filter(r => {
+        if (!r.topico_id || !validTopicIds.has(r.topico_id)) {
+          console.warn('Descartando relação com topico_id não encontrado em topicos:', r);
+          return false;
+        }
+        return true;
+      });
+
+      if (safeRelations.length > 0) {
         const { error } = await supabase
           .from('sumula_topicos')
-          .upsert(relations, { onConflict: 'sumula_id, topico_id', ignoreDuplicates: true });
+          .upsert(safeRelations, { onConflict: 'sumula_id, topico_id', ignoreDuplicates: true });
         if (error) throw error;
       }
 
-      toast({ title: 'Tópicos aplicados!', description: `${relations.length} associações criadas com sucesso.` });
+      toast({ title: 'Tópicos aplicados!', description: `${safeRelations.length} associações criadas com sucesso.` });
       setTopicModalStage('done');
       loadData();
       setSelectedSumulas([]);
