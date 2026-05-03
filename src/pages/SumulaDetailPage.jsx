@@ -26,6 +26,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { supabase } from '@/lib/supabaseClient';
+import SubscribeWidget from '@/components/SubscribeWidget';
 
 const FeedbackButton = ({ sumulaId, sumulaTitle, sumulaSlug, faqId, faqQuestion }) => {
     const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
@@ -294,6 +295,8 @@ const SumulaDetailPage = () => {
                       <FeedbackButton sumulaId={sumula.id} sumulaTitle={sumula.title} sumulaSlug={sumula.slug} />
                   </CardFooter>
                 </Card>
+
+                <SubscribeWidget sumulaTopics={sumula.topicos || []} />
 
                 {sumula.faqs && sumula.faqs.length > 0 && (
                   <motion.div

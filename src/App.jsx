@@ -14,6 +14,8 @@ import ManageTribunaisPage from '@/pages/admin/ManageTribunaisPage';
 import ManageInstitutionalPage from '@/pages/admin/ManageInstitutionalPage';
 import ManageFaqsPage from '@/pages/admin/ManageFaqsPage';
 import ManageFeedbacksPage from '@/pages/admin/ManageFeedbacksPage';
+import ManageCoveragePage from '@/pages/admin/ManageCoveragePage';
+import ManageSubscribersPage from '@/pages/admin/ManageSubscribersPage';
 import ProtectedRoute from '@/components/admin/ProtectedRoute';
 import { supabase } from './lib/supabaseClient';
 import { useToast } from './components/ui/use-toast';
@@ -148,6 +150,8 @@ function App() {
                 <Route path="institucional" element={<ManageInstitutionalPage />} />
                 <Route path="faqs" element={<ManageFaqsPage />} />
                 <Route path="feedbacks" element={<ManageFeedbacksPage />} />
+                <Route path="cobertura" element={<ManageCoveragePage />} />
+                <Route path="cadastrados" element={<ManageSubscribersPage />} />
               </Route>
             </Route>
 

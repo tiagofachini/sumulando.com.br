@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { MultiSelectCombobox } from '@/components/MultiSelectCombobox';
 import { supabase } from '@/lib/supabaseClient';
 import { slugify } from '@/lib/utils';
+import SubscribeWidget from '@/components/SubscribeWidget';
 
 const SITE_URL = 'https://sumulando.com.br';
 
@@ -233,6 +234,14 @@ const HomePage = () => {
             <p className="text-gray-600">
               {sumulasCount ? `Acesse mais de ${sumulasCount.toLocaleString('pt-BR')} súmulas` : 'Acesse milhares de súmulas'} dos principais tribunais brasileiros
             </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.2 }}
+          >
+            <SubscribeWidget />
           </motion.div>
         </motion.div>
       </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, Tag, Landmark, LogOut, Building, FileQuestion, MessageSquare as MessageSquareQuote, ChevronLeft, ChevronRight, Scale } from 'lucide-react';
+import { LayoutDashboard, FileText, Tag, Landmark, LogOut, Building, FileQuestion, MessageSquare as MessageSquareQuote, ChevronLeft, ChevronRight, Scale, BarChart2, Users } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -18,12 +18,14 @@ const AdminLayout = () => {
 
   const navItems = [
     { href: '/admfachini/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { href: '/admfachini/cobertura', icon: BarChart2, label: 'Cobertura' },
     { href: '/admfachini/sumulas', icon: FileText, label: 'Súmulas' },
     { href: '/admfachini/topicos', icon: Tag, label: 'Tópicos' },
     { href: '/admfachini/tribunais', icon: Landmark, label: 'Tribunais' },
     { href: '/admfachini/institucional', icon: Building, label: 'Institucional' },
     { href: '/admfachini/faqs', icon: FileQuestion, label: 'FAQs' },
     { href: '/admfachini/feedbacks', icon: MessageSquareQuote, label: 'Feedbacks' },
+    { href: '/admfachini/cadastrados', icon: Users, label: 'Cadastrados' },
   ];
 
   return (
