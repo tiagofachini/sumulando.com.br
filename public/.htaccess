@@ -10,6 +10,10 @@
   RewriteEngine On
   RewriteBase /
 
+  # 301: www → não-www (canônico definitivo — deve vir antes do fallback SPA)
+  RewriteCond %{HTTP_HOST} ^www\.sumulando\.com\.br$ [NC]
+  RewriteRule ^(.*)$ https://sumulando.com.br/$1 [R=301,L]
+
   # Never rewrite real files or directories
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d

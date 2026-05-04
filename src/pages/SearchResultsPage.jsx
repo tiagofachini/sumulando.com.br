@@ -186,6 +186,7 @@ const SearchResultsPage = () => {
       <Helmet>
         <title>{`Resultados da busca ${getSearchTermText()} - Sumulando`}</title>
         <meta name="description" content={`Resultados da busca por ${query || 'súmulas'} no Sumulando.`} />
+        <meta name="robots" content="noindex, follow" />
         <link rel="canonical" href={`${SITE_URL}/busca`} />
         <meta property="og:url" content={`${SITE_URL}/busca`} />
         <meta property="og:title" content={`Resultados da busca ${getSearchTermText()} - Sumulando`} />
