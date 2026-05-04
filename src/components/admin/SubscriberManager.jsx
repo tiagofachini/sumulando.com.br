@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, Trash2, Download, Users, Mail, Phone, Filter } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Search, Trash2, Download, Users, Mail, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -20,30 +19,22 @@ const SubscriberManager = () => {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [topicoFilter, setTopicoFilter] = useState('all');
-  const [topicos, setTopicos] = useState([]);
   const [page, setPage] = useState(0);
   const [debouncedSearch, setDebouncedSearch] = useState('');
-
-  useEffect(() => {
-    supabase.from('topicos').select('id, name').order('name').then(({ data }) => {
-      if (data) setTopicos(data);
-    });
-  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchTerm), 350);
     return () => clearTimeout(t);
   }, [searchTerm]);
 
-  useEffect(() => { setPage(0); }, [debouncedSearch, topicoFilter]);
+  useEffect(() => { setPage(0); }, [debouncedSearch]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase.rpc('search_subscribers', {
         p_search_term: debouncedSearch,
-        p_topico_id: topicoFilter === 'all' ? null : topicoFilter,
+        p_sumula_id: null,
         p_limit: PAGE_SIZE,
         p_offset: page * PAGE_SIZE,
       });
@@ -55,37 +46,36 @@ const SubscriberManager = () => {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, topicoFilter, page, toast]);
+  }, [debouncedSearch, page, toast]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const handleDelete = async (id, name) => {
+  const handleDelete = async (id, label) => {
     const { error } = await supabase.rpc('delete_subscriber', { p_id: id });
     if (error) {
       toast({ title: 'Erro ao excluir', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Cadastrado removido', description: `${name} foi removido da lista.` });
+      toast({ title: 'Cadastrado removido', description: `${label} foi removido da lista.` });
       loadData();
     }
   };
 
   const handleExportCsv = async () => {
-    // Load all records for export (no pagination)
     const { data, error } = await supabase.rpc('search_subscribers', {
       p_search_term: debouncedSearch,
-      p_topico_id: topicoFilter === 'all' ? null : topicoFilter,
+      p_sumula_id: null,
       p_limit: 10000,
       p_offset: 0,
     });
     if (error) { toast({ title: 'Erro ao exportar', description: error.message, variant: 'destructive' }); return; }
 
-    const rows = [['Nome', 'E-mail', 'WhatsApp', 'Tópicos', 'Cadastrado em']];
+    const rows = [['Nome', 'E-mail', 'WhatsApp', 'Súmulas acompanhadas', 'Cadastrado em']];
     (data || []).forEach(s => {
       rows.push([
-        s.name,
+        s.name || '',
         s.email || '',
         s.whatsapp || '',
-        (s.topicos || []).map(t => t.name).join('; '),
+        (s.sumulas || []).map(sm => sm.title).join('; '),
         new Date(s.created_at).toLocaleDateString('pt-BR'),
       ]);
     });
@@ -112,14 +102,12 @@ const SubscriberManager = () => {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="bg-indigo-50 border-indigo-200">
-          <CardContent className="p-4 text-center">
-            <p className="text-3xl font-extrabold text-indigo-700">{total.toLocaleString('pt-BR')}</p>
-            <p className="text-sm text-indigo-600 mt-1">Total de cadastrados</p>
-          </CardContent>
-        </Card>
-      </div>
+      <Card className="bg-indigo-50 border-indigo-200 w-fit">
+        <CardContent className="p-4 text-center">
+          <p className="text-3xl font-extrabold text-indigo-700">{total.toLocaleString('pt-BR')}</p>
+          <p className="text-sm text-indigo-600 mt-1">Total de cadastrados</p>
+        </CardContent>
+      </Card>
 
       <Card className="bg-white/80 backdrop-blur-xl shadow-lg border-white/20 rounded-2xl">
         <CardHeader>
@@ -127,28 +115,14 @@ const SubscriberManager = () => {
             <Users className="w-5 h-5 text-indigo-600" />
             Lista de Cadastrados
           </CardTitle>
-          <div className="flex gap-3 flex-wrap mt-2">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                placeholder="Buscar por nome, e-mail ou WhatsApp..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="pl-9 h-10"
-              />
-            </div>
-            <Select value={topicoFilter} onValueChange={setTopicoFilter}>
-              <SelectTrigger className="w-48 h-10">
-                <Filter className="w-4 h-4 mr-2 text-gray-400" />
-                <SelectValue placeholder="Filtrar por tópico" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os tópicos</SelectItem>
-                {topicos.map(t => (
-                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="relative mt-2">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Input
+              placeholder="Buscar por nome, e-mail ou WhatsApp..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="pl-9 h-10"
+            />
           </div>
         </CardHeader>
 
@@ -159,61 +133,64 @@ const SubscriberManager = () => {
             <p className="text-center py-10 text-gray-500">Nenhum cadastrado encontrado.</p>
           ) : (
             <div className="space-y-2">
-              {subscribers.map(s => (
-                <div key={s.id} className="flex items-start justify-between gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100 hover:bg-gray-100 transition-colors">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-800 truncate">{s.name}</p>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
-                      {s.email && (
-                        <span className="flex items-center gap-1 text-sm text-gray-500">
-                          <Mail className="w-3 h-3" /> {s.email}
+              {subscribers.map(s => {
+                const label = s.name || s.email || s.whatsapp || s.id;
+                return (
+                  <div key={s.id} className="flex items-start justify-between gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100 hover:bg-gray-100 transition-colors">
+                    <div className="flex-1 min-w-0">
+                      {s.name && <p className="font-semibold text-gray-800 truncate">{s.name}</p>}
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-0.5">
+                        {s.email && (
+                          <span className="flex items-center gap-1 text-sm text-gray-500">
+                            <Mail className="w-3 h-3" /> {s.email}
+                          </span>
+                        )}
+                        {s.whatsapp && (
+                          <span className="flex items-center gap-1 text-sm text-gray-500">
+                            <Phone className="w-3 h-3" /> {s.whatsapp}
+                          </span>
+                        )}
+                        <span className="text-xs text-gray-400">
+                          {new Date(s.created_at).toLocaleDateString('pt-BR')}
                         </span>
-                      )}
-                      {s.whatsapp && (
-                        <span className="flex items-center gap-1 text-sm text-gray-500">
-                          <Phone className="w-3 h-3" /> {s.whatsapp}
-                        </span>
-                      )}
-                      <span className="text-xs text-gray-400">
-                        {new Date(s.created_at).toLocaleDateString('pt-BR')}
-                      </span>
-                    </div>
-                    {s.topicos?.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {s.topicos.map(t => (
-                          <Badge key={t.id} variant="secondary" className="text-xs bg-blue-50 text-blue-700">
-                            {t.name}
-                          </Badge>
-                        ))}
                       </div>
-                    )}
+                      {s.sumulas?.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {s.sumulas.map(sm => (
+                            <Badge key={sm.id} variant="secondary" className="text-xs bg-blue-50 text-blue-700 max-w-[220px] truncate">
+                              {sm.title}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="sm" variant="outline" className="hover:bg-red-50 hover:text-red-600 hover:border-red-300 shrink-0">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Remover cadastrado?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Isso removerá <strong>{label}</strong> da lista permanentemente.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDelete(s.id, label)}
+                            className="bg-red-600 hover:bg-red-700"
+                          >
+                            Remover
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button size="sm" variant="outline" className="hover:bg-red-50 hover:text-red-600 hover:border-red-300 shrink-0">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Remover cadastrado?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Isso removerá <strong>{s.name}</strong> da lista permanentemente.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => handleDelete(s.id, s.name)}
-                          className="bg-red-600 hover:bg-red-700"
-                        >
-                          Remover
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 

@@ -1,63 +1,40 @@
-import React, { useState, useEffect } from 'react';
-import { Bell, CheckCircle, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Bell, CheckCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/lib/supabaseClient';
 
-const SubscribeWidget = ({ sumulaTopics = [] }) => {
+const SubscribeWidget = ({ sumulaId, sumulaTitle }) => {
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [whatsapp, setWhatsapp] = useState('');
-  const [selectedTopics, setSelectedTopics] = useState([]);
-  const [availableTopics, setAvailableTopics] = useState([]);
-  const [showTopics, setShowTopics] = useState(false);
-  const [status, setStatus] = useState('idle'); // idle | loading | success | error
+  const [channel, setChannel] = useState('email'); // 'email' | 'whatsapp'
+  const [contact, setContact] = useState('');
+  const [status, setStatus] = useState('idle');
   const [errorMsg, setErrorMsg] = useState('');
-
-  useEffect(() => {
-    if (sumulaTopics && sumulaTopics.length > 0) {
-      setAvailableTopics(sumulaTopics);
-      setSelectedTopics(sumulaTopics.map(t => t.id));
-    } else {
-      supabase.from('topicos').select('id, name').order('name').then(({ data }) => {
-        if (data) setAvailableTopics(data);
-      });
-    }
-  }, [sumulaTopics]);
-
-  const toggleTopic = (id) => {
-    setSelectedTopics(prev =>
-      prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
-    );
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name.trim()) { setErrorMsg('Informe seu nome.'); return; }
-    if (!email.trim() && !whatsapp.trim()) { setErrorMsg('Informe e-mail ou WhatsApp.'); return; }
+    if (!contact.trim()) {
+      setErrorMsg(channel === 'email' ? 'Informe seu e-mail.' : 'Informe seu WhatsApp.');
+      return;
+    }
+    if (!sumulaId) {
+      setErrorMsg('Súmula não identificada.');
+      return;
+    }
     setErrorMsg('');
     setStatus('loading');
 
-    const { data: sub, error: subError } = await supabase
-      .from('subscribers')
-      .insert({ name: name.trim(), email: email.trim() || null, whatsapp: whatsapp.trim() || null })
-      .select('id')
-      .single();
+    const { error } = await supabase.rpc('upsert_subscriber_sumula', {
+      p_name:      name.trim() || null,
+      p_email:     channel === 'email'    ? contact.trim() : null,
+      p_whatsapp:  channel === 'whatsapp' ? contact.trim() : null,
+      p_sumula_id: sumulaId,
+    });
 
-    if (subError) {
-      if (subError.code === '23505') {
-        setErrorMsg('Este contato já está cadastrado. Obrigado pelo interesse!');
-      } else {
-        setErrorMsg('Erro ao cadastrar. Tente novamente.');
-      }
+    if (error) {
+      setErrorMsg('Erro ao cadastrar. Tente novamente.');
       setStatus('error');
       return;
-    }
-
-    if (selectedTopics.length > 0 && sub?.id) {
-      await supabase.from('subscriber_topicos').insert(
-        selectedTopics.map(topico_id => ({ subscriber_id: sub.id, topico_id }))
-      );
     }
 
     setStatus('success');
@@ -65,102 +42,65 @@ const SubscribeWidget = ({ sumulaTopics = [] }) => {
 
   if (status === 'success') {
     return (
-      <div className="my-6 rounded-2xl border border-green-200 bg-green-50 p-6 flex items-center gap-4">
-        <CheckCircle className="w-8 h-8 text-green-500 shrink-0" />
-        <div>
-          <p className="font-semibold text-green-800">Cadastrado com sucesso!</p>
-          <p className="text-sm text-green-700 mt-0.5">Você receberá novidades jurídicas em breve. É gratuito e sem spam.</p>
-        </div>
+      <div className="my-6 rounded-xl border border-green-200 bg-green-50 p-4 flex items-center gap-3">
+        <CheckCircle className="w-5 h-5 text-green-500 shrink-0" />
+        <p className="text-sm text-green-800">Cadastrado! Você receberá atualizações sobre esta súmula.</p>
       </div>
     );
   }
 
   return (
-    <div className="my-6 rounded-2xl border-l-4 border-blue-500 bg-white/80 backdrop-blur-xl shadow-md p-6">
-      <div className="flex items-start gap-3 mb-4">
-        <div className="p-2 rounded-full bg-blue-100 shrink-0 mt-0.5">
-          <Bell className="w-4 h-4 text-blue-600" />
-        </div>
-        <div>
-          <h3 className="font-bold text-gray-800 text-base leading-tight">
-            Receba novidades jurídicas — é gratuito
-          </h3>
-          <p className="text-sm text-gray-500 mt-1">
-            Seja notificado sobre novas súmulas e atualizações de jurisprudência.
-          </p>
-          <div className="flex flex-wrap gap-3 mt-2">
-            {['Gratuito', 'Sem spam', 'Cancele quando quiser'].map(b => (
-              <span key={b} className="text-xs text-blue-600 font-medium flex items-center gap-1">
-                <CheckCircle className="w-3 h-3" /> {b}
-              </span>
-            ))}
-          </div>
-        </div>
+    <div className="my-6 rounded-xl border border-gray-200 bg-white/80 backdrop-blur-xl shadow-sm p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <Bell className="w-4 h-4 text-blue-600 shrink-0" />
+        <h3 className="text-sm font-semibold text-gray-800">
+          Receber atualizações sobre esta súmula
+        </h3>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <div className="grid sm:grid-cols-3 gap-3">
-          <Input
-            placeholder="Seu nome *"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            className="h-10 text-sm"
-          />
-          <Input
-            type="email"
-            placeholder="E-mail"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            className="h-10 text-sm"
-          />
-          <Input
-            placeholder="WhatsApp (com DDD)"
-            value={whatsapp}
-            onChange={e => setWhatsapp(e.target.value)}
-            className="h-10 text-sm"
-          />
+      <form onSubmit={handleSubmit} className="space-y-2">
+        <Input
+          placeholder="Nome (opcional)"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          className="h-9 text-sm"
+        />
+
+        <div className="flex gap-1 text-xs">
+          {['email', 'whatsapp'].map(c => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => { setChannel(c); setContact(''); setErrorMsg(''); }}
+              className={`px-3 py-1 rounded-full border transition-colors font-medium ${
+                channel === c
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-500 border-gray-300 hover:border-blue-400'
+              }`}
+            >
+              {c === 'email' ? 'E-mail' : 'WhatsApp'}
+            </button>
+          ))}
         </div>
 
-        {availableTopics.length > 0 && (
-          <div>
-            <button
-              type="button"
-              onClick={() => setShowTopics(v => !v)}
-              className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1 font-medium"
-            >
-              {showTopics ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              {showTopics ? 'Ocultar tópicos de interesse' : 'Escolher tópicos de interesse'}
-            </button>
-            {showTopics && (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {availableTopics.map(t => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => toggleTopic(t.id)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                      selectedTopics.includes(t.id)
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
-                    }`}
-                  >
-                    {t.name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        <Input
+          type={channel === 'email' ? 'email' : 'tel'}
+          placeholder={channel === 'email' ? 'seu@email.com' : 'WhatsApp com DDD'}
+          value={contact}
+          onChange={e => { setContact(e.target.value); setErrorMsg(''); }}
+          className="h-9 text-sm"
+        />
 
-        {errorMsg && <p className="text-sm text-red-600">{errorMsg}</p>}
+        {errorMsg && <p className="text-xs text-red-600">{errorMsg}</p>}
 
-        <div className="flex justify-end">
+        <div className="flex justify-end pt-1">
           <Button
             type="submit"
             disabled={status === 'loading'}
-            className="h-9 px-5 text-sm bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+            size="sm"
+            className="h-8 px-4 text-xs bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
           >
-            {status === 'loading' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Cadastrar gratuitamente'}
+            {status === 'loading' ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Receber atualizações'}
           </Button>
         </div>
       </form>

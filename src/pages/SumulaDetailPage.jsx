@@ -296,7 +296,7 @@ const SumulaDetailPage = () => {
                   </CardFooter>
                 </Card>
 
-                <SubscribeWidget sumulaTopics={sumula.topicos || []} />
+                <SubscribeWidget sumulaId={sumula.id} sumulaTitle={sumula.title} />
 
                 {sumula.faqs && sumula.faqs.length > 0 && (
                   <motion.div
