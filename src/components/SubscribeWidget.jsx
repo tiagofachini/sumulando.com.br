@@ -1,21 +1,71 @@
 import React, { useState } from 'react';
-import { Bell, CheckCircle, Loader2, ArrowRight } from 'lucide-react';
+import { Bell, CheckCircle, Loader2, ArrowRight, Mail, Phone } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 
+const applyPhoneMask = (digits) => {
+  const d = digits.slice(0, 11);
+  if (d.length === 0) return '';
+  if (d.length <= 2) return `(${d}`;
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+};
+
+const detectChannel = (value) => {
+  if (!value) return null;
+  if (value.includes('@') || /^[a-zA-Z]/.test(value)) return 'email';
+  if (/^[\d(]/.test(value)) return 'whatsapp';
+  return null;
+};
+
+const isValidEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+const isValidPhone = (v) => v.replace(/\D/g, '').length >= 10;
+
 const SubscribeWidget = ({ sumulaId, sumulaTitle }) => {
-  const [name, setName] = useState('');
-  const [channel, setChannel] = useState('email');
+  const [name, setName]       = useState('');
   const [contact, setContact] = useState('');
-  const [status, setStatus] = useState('idle');
+  const [channel, setChannel] = useState(null); // null | 'email' | 'whatsapp'
+  const [status, setStatus]   = useState('idle');
   const [errorMsg, setErrorMsg] = useState('');
+
+  const handleContactChange = (e) => {
+    const raw = e.target.value;
+    setErrorMsg('');
+
+    if (raw === '') {
+      setContact('');
+      setChannel(null);
+      return;
+    }
+
+    const detected = detectChannel(raw) ?? channel;
+    setChannel(detected);
+
+    if (detected === 'whatsapp') {
+      const digits = raw.replace(/\D/g, '');
+      setContact(applyPhoneMask(digits));
+    } else {
+      setContact(raw);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!contact.trim()) {
-      setErrorMsg(channel === 'email' ? 'Informe seu e-mail.' : 'Informe seu WhatsApp.');
+
+    if (!contact.trim() || !channel) {
+      setErrorMsg('Informe seu e-mail ou WhatsApp.');
+      return;
+    }
+    if (channel === 'email' && !isValidEmail(contact)) {
+      setErrorMsg('E-mail inválido.');
+      return;
+    }
+    if (channel === 'whatsapp' && !isValidPhone(contact)) {
+      setErrorMsg('WhatsApp incompleto. Informe DDD + número.');
       return;
     }
     if (!sumulaId) return;
+
     setErrorMsg('');
     setStatus('loading');
 
@@ -28,7 +78,7 @@ const SubscribeWidget = ({ sumulaId, sumulaTitle }) => {
 
     if (error) {
       console.error('upsert_subscriber_sumula error:', error);
-      setErrorMsg(`Erro ao cadastrar. Tente novamente.`);
+      setErrorMsg('Erro ao cadastrar. Tente novamente.');
       setStatus('error');
       return;
     }
@@ -48,9 +98,10 @@ const SubscribeWidget = ({ sumulaId, sumulaTitle }) => {
     ? (sumulaTitle.length > 60 ? sumulaTitle.slice(0, 57) + '…' : sumulaTitle)
     : 'esta súmula';
 
+  const ChannelIcon = channel === 'email' ? Mail : channel === 'whatsapp' ? Phone : null;
+
   return (
     <div className="my-4 rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50/70 shadow-sm px-4 py-3 border-l-4 border-l-blue-500">
-      {/* Header */}
       <div className="flex items-start gap-2 mb-2.5">
         <Bell className="w-3.5 h-3.5 text-blue-600 mt-0.5 shrink-0" />
         <p className="text-xs font-semibold text-blue-900 leading-snug">
@@ -59,7 +110,6 @@ const SubscribeWidget = ({ sumulaId, sumulaTitle }) => {
         </p>
       </div>
 
-      {/* Form — single compact row */}
       <form onSubmit={handleSubmit} className="flex flex-wrap items-center gap-1.5">
         {/* Name */}
         <input
@@ -70,30 +120,34 @@ const SubscribeWidget = ({ sumulaId, sumulaTitle }) => {
           className="h-8 px-2.5 text-xs rounded-lg border border-gray-200 bg-white focus:outline-none focus:border-blue-400 w-32 flex-none"
         />
 
-        {/* Channel toggle + contact — visually joined */}
-        <div className="flex flex-1 min-w-[200px] h-8 rounded-lg border border-gray-200 overflow-hidden focus-within:border-blue-400 transition-colors">
-          <div className="flex border-r border-gray-200 shrink-0">
-            {['email', 'whatsapp'].map(c => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => { setChannel(c); setContact(''); setErrorMsg(''); }}
-                className={`px-2 text-xs font-medium transition-colors ${
-                  channel === c
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-                }`}
-              >
-                {c === 'email' ? 'E-mail' : 'WhatsApp'}
-              </button>
-            ))}
-          </div>
+        {/* Auto-detect contact field */}
+        <div className={`flex flex-1 min-w-[200px] h-8 rounded-lg border overflow-hidden transition-colors focus-within:border-blue-400 ${
+          channel === 'email'    ? 'border-blue-300' :
+          channel === 'whatsapp' ? 'border-green-300' :
+          'border-gray-200'
+        }`}>
+          {ChannelIcon && (
+            <div className={`flex items-center px-2 border-r shrink-0 ${
+              channel === 'email'    ? 'border-blue-200 bg-blue-50'  :
+              channel === 'whatsapp' ? 'border-green-200 bg-green-50' :
+              'border-gray-200 bg-gray-50'
+            }`}>
+              <ChannelIcon className={`w-3 h-3 ${
+                channel === 'email' ? 'text-blue-500' : 'text-green-600'
+              }`} />
+            </div>
+          )}
           <input
-            type={channel === 'email' ? 'email' : 'tel'}
-            placeholder={channel === 'email' ? 'seu@email.com' : '(11) 99999-9999'}
+            type={channel === 'whatsapp' ? 'tel' : 'text'}
+            placeholder={
+              channel === 'email'    ? 'seu@email.com'    :
+              channel === 'whatsapp' ? '(11) 99999-9999'  :
+              'E-mail ou WhatsApp'
+            }
             value={contact}
-            onChange={e => { setContact(e.target.value); setErrorMsg(''); }}
+            onChange={handleContactChange}
             className="flex-1 px-2.5 text-xs bg-white focus:outline-none min-w-0"
+            inputMode={channel === 'whatsapp' ? 'numeric' : 'text'}
           />
         </div>
 
