@@ -65,6 +65,7 @@ $$;
 GRANT EXECUTE ON FUNCTION upsert_subscriber_sumula(text, text, text, uuid) TO anon, authenticated;
 
 -- 4. Função de listagem para o painel administrativo
+DROP FUNCTION IF EXISTS search_subscribers(text, uuid, int, int);
 CREATE OR REPLACE FUNCTION search_subscribers(
   p_search_term text DEFAULT '',
   p_sumula_id   uuid DEFAULT NULL,
