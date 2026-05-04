@@ -306,8 +306,8 @@ const SumulaDetailPage = () => {
                   >
                     <Card className="bg-white/80 backdrop-blur-xl shadow-xl border-white/20 rounded-2xl overflow-hidden">
                       <CardHeader>
-                        <CardTitle className="flex items-center text-2xl font-bold text-gray-800">
-                            <HelpCircle className="mr-3 h-6 w-6"/>
+                        <CardTitle className="flex items-center gap-2.5 text-xl font-semibold text-gray-800">
+                            <HelpCircle className="h-5 w-5 text-blue-600 shrink-0"/>
                             Perguntas Frequentes
                         </CardTitle>
                       </CardHeader>
@@ -344,8 +344,8 @@ const SumulaDetailPage = () => {
                   >
                      <Card className="bg-white/80 backdrop-blur-xl shadow-xl border-white/20 rounded-2xl overflow-hidden">
                         <CardHeader>
-                            <CardTitle className="flex items-center text-2xl font-bold text-gray-800">
-                                <BookOpen className="mr-3 h-6 w-6"/>
+                            <CardTitle className="flex items-center gap-2.5 text-xl font-semibold text-gray-800">
+                                <BookOpen className="h-5 w-5 text-blue-600 shrink-0"/>
                                 Súmulas Relacionadas
                             </CardTitle>
                         </CardHeader>

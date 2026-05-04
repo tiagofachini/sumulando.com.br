@@ -32,7 +32,7 @@ const SubscribeWidget = ({ sumulaId, sumulaTitle }) => {
 
   if (status === 'success') {
     return (
-      <div className="my-4 rounded-xl border border-green-200 bg-green-50 px-4 py-2.5 flex items-center gap-2.5">
+      <div className="my-4 rounded-xl border border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 px-4 py-2.5 flex items-center gap-2.5 border-l-4 border-l-green-500">
         <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
         <p className="text-xs text-green-800">Pronto! Você receberá atualizações sobre esta súmula.</p>
       </div>
@@ -44,13 +44,13 @@ const SubscribeWidget = ({ sumulaId, sumulaTitle }) => {
     : 'esta súmula';
 
   return (
-    <div className="my-4 rounded-xl border border-gray-200 bg-white/80 backdrop-blur-xl shadow-sm px-4 py-3">
+    <div className="my-4 rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50/70 shadow-sm px-4 py-3 border-l-4 border-l-blue-500">
       {/* Header */}
       <div className="flex items-start gap-2 mb-2.5">
-        <Bell className="w-3.5 h-3.5 text-blue-500 mt-0.5 shrink-0" />
-        <p className="text-xs font-medium text-gray-700 leading-snug">
+        <Bell className="w-3.5 h-3.5 text-blue-600 mt-0.5 shrink-0" />
+        <p className="text-xs font-semibold text-blue-900 leading-snug">
           Receba jurisprudências e atualizações sobre{' '}
-          <span className="text-gray-900 font-semibold" title={sumulaTitle}>{displayTitle}</span>
+          <span title={sumulaTitle}>{displayTitle}</span>
         </p>
       </div>
 
