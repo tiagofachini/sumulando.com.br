@@ -4,6 +4,10 @@
 -- Run in: https://supabase.com/dashboard/project/rjitzozuzonlnvczuvcy/sql/new
 -- ============================================================
 
+-- 0. Drop de funções com tipo de retorno alterado (deve vir antes de qualquer CREATE)
+DROP FUNCTION IF EXISTS search_subscribers(text, uuid, integer, integer) CASCADE;
+DROP FUNCTION IF EXISTS search_subscribers(text, uuid, int, int) CASCADE;
+
 -- 1. Garante que a coluna name é nullable (caso tenha sido criada como NOT NULL)
 ALTER TABLE IF EXISTS subscribers
   ALTER COLUMN name DROP NOT NULL;
@@ -65,7 +69,6 @@ $$;
 GRANT EXECUTE ON FUNCTION upsert_subscriber_sumula(text, text, text, uuid) TO anon, authenticated;
 
 -- 4. Função de listagem para o painel administrativo
-DROP FUNCTION IF EXISTS search_subscribers(text, uuid, int, int);
 CREATE OR REPLACE FUNCTION search_subscribers(
   p_search_term text DEFAULT '',
   p_sumula_id   uuid DEFAULT NULL,
