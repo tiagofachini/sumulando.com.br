@@ -26,7 +26,12 @@ const SubscribeWidget = ({ sumulaId, sumulaTitle }) => {
       p_sumula_id: sumulaId,
     });
 
-    if (error) { setErrorMsg('Erro ao cadastrar. Tente novamente.'); setStatus('error'); return; }
+    if (error) {
+      console.error('upsert_subscriber_sumula error:', error);
+      setErrorMsg(`Erro ao cadastrar. Tente novamente.`);
+      setStatus('error');
+      return;
+    }
     setStatus('success');
   };
 
