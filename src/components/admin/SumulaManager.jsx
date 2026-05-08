@@ -59,7 +59,7 @@ const SumulaManager = () => {
   const [formData, setFormData] = useState({
     id: '', slug: '', title: '', content: '',
     publishDate: new Date().toISOString().split('T')[0],
-    referenceLink: '', tribunal: '', categories: [], youtubeUrl: ''
+    referenceLink: '', tribunal: '', categories: [], youtubeUrl: '', status: 'ativa'
   });
 
   const loadData = useCallback(async () => {
@@ -108,6 +108,7 @@ const SumulaManager = () => {
         categoryObjects: s.sumula_topicos.map(st => st.topicos).filter(Boolean),
         createdAt: s.created_at,
         youtubeUrl: s.youtube_url,
+        status: s.status || 'ativa',
         faqCount: s.faqs?.length || 0,
       }));
       setSumulas(formattedSumulas);
@@ -253,7 +254,8 @@ const SumulaManager = () => {
       publish_date: formData.publishDate,
       reference_link: formData.referenceLink,
       tribunal_id: formData.tribunal,
-      youtube_url: formData.youtubeUrl || null
+      youtube_url: formData.youtubeUrl || null,
+      status: formData.status || 'ativa',
     };
 
     try {
@@ -311,7 +313,8 @@ const SumulaManager = () => {
     setFormData({
       ...sumula, title: sumula.title, categories: sumula.categories || [],
       publishDate: sumula.publishDate ? new Date(sumula.publishDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-      youtubeUrl: sumula.youtubeUrl || ''
+      youtubeUrl: sumula.youtubeUrl || '',
+      status: sumula.status || 'ativa',
     });
     setEditingId(sumula.id);
     setIsFormVisible(true);
@@ -901,6 +904,9 @@ const SumulaManager = () => {
                           <span className="px-3 py-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white text-xs font-semibold rounded-full">
                               {sumula.tribunalName}
                           </span>
+                          <Badge variant="secondary" className={`text-xs font-medium ${sumula.status === 'cancelada' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                            {sumula.status === 'cancelada' ? 'Cancelada' : 'Ativa'}
+                          </Badge>
                           <Badge variant={sumula.faqCount > 0 ? 'secondary' : 'outline'} className={`flex items-center gap-1 text-xs ${sumula.faqCount > 0 ? 'bg-green-100 text-green-800' : 'text-gray-400'}`}>
                             <HelpCircle className="w-3 h-3" />
                             {sumula.faqCount > 0 ? `${sumula.faqCount} FAQ${sumula.faqCount > 1 ? 's' : ''}` : 'Sem FAQs'}

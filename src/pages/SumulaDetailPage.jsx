@@ -227,10 +227,15 @@ const SumulaDetailPage = () => {
               >
                 <Card className="bg-white/80 backdrop-blur-xl shadow-xl border-white/20 rounded-2xl overflow-hidden mb-8">
                   <CardHeader className="p-8">
-                    <div className="mb-4">
+                    <div className="mb-4 flex items-center gap-3 flex-wrap">
                       <span className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold rounded-full">
                         {sumula.tribunal_name}
                       </span>
+                      {sumula.status === 'cancelada' && (
+                        <span className="px-3 py-1 bg-red-100 text-red-700 text-sm font-semibold rounded-full border border-red-200">
+                          Cancelada
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-4">

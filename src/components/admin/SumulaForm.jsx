@@ -135,7 +135,7 @@ const SumulaForm = ({
           />
         </div>
 
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid md:grid-cols-3 gap-4">
           <div>
             <Label className="text-gray-700 font-semibold mb-2 block">
               Data de Publicação *
@@ -146,6 +146,24 @@ const SumulaForm = ({
               onChange={(e) => setFormData({ ...formData, publishDate: e.target.value })}
               className="h-12 rounded-xl border-2"
             />
+          </div>
+
+          <div>
+            <Label className="text-gray-700 font-semibold mb-2 block">
+              Status
+            </Label>
+            <Select
+              value={formData.status || 'ativa'}
+              onValueChange={(value) => setFormData({ ...formData, status: value })}
+            >
+              <SelectTrigger className="h-12 rounded-xl border-2">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ativa">Ativa</SelectItem>
+                <SelectItem value="cancelada">Cancelada</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div>
