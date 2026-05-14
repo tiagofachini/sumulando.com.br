@@ -4,6 +4,7 @@ import { Scale, ExternalLink } from 'lucide-react';
 
 const Footer = () => {
   const footerLinks = [
+    { name: 'Blog', path: '/blog' },
     { name: 'Sobre', path: '/institucional/sobre' },
     { name: 'Termos de Uso e Política de Privacidade', path: '/institucional/termos-de-uso' },
     { name: 'Contato', path: '/institucional/contato' },

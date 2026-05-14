@@ -16,6 +16,7 @@ import ManageFaqsPage from '@/pages/admin/ManageFaqsPage';
 import ManageFeedbacksPage from '@/pages/admin/ManageFeedbacksPage';
 import ManageCoveragePage from '@/pages/admin/ManageCoveragePage';
 import ManageSubscribersPage from '@/pages/admin/ManageSubscribersPage';
+import BlogPage from '@/pages/BlogPage';
 import ProtectedRoute from '@/components/admin/ProtectedRoute';
 import { supabase } from './lib/supabaseClient';
 import { useToast } from './components/ui/use-toast';
@@ -107,11 +108,6 @@ function App() {
              console.log('Súmulas migradas.');
         }
 
-        // REMOVED TOAST: "Migração Concluída! Seus dados foram movidos para o banco de dados."
-        // toast({
-        //   title: "Migração Concluída!",
-        //   description: "Seus dados foram movidos para o banco de dados.",
-        // });
         localStorage.setItem('supabase_migration_v1_done', 'true');
         console.log('Migration finished successfully.');
         
@@ -138,6 +134,7 @@ function App() {
             <Route path="/busca" element={<SearchResultsPage />} />
             <Route path="/sumula/:slug" element={<SumulaDetailPage />} />
             <Route path="/institucional/:slug" element={<InstitutionalPage />} />
+            <Route path="/blog" element={<BlogPage />} />
             
             <Route path="/admfachini" element={<AdminLoginPage />} />
             
