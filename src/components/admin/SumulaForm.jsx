@@ -135,7 +135,7 @@ const SumulaForm = ({
           />
         </div>
 
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <Label className="text-gray-700 font-semibold mb-2 block">
               Data de Publicação *
@@ -168,15 +168,33 @@ const SumulaForm = ({
 
           <div>
             <Label className="text-gray-700 font-semibold mb-2 block">
-              Link de Referência
+              Categoria
             </Label>
-            <Input
-              value={formData.referenceLink}
-              onChange={(e) => setFormData({ ...formData, referenceLink: e.target.value })}
-              placeholder="https://..."
-              className="h-12 rounded-xl border-2"
-            />
+            <Select
+              value={formData.categoria || 'nao-vinculante'}
+              onValueChange={(value) => setFormData({ ...formData, categoria: value })}
+            >
+              <SelectTrigger className="h-12 rounded-xl border-2">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="nao-vinculante">Não-vinculante</SelectItem>
+                <SelectItem value="vinculante">Vinculante</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
+        </div>
+
+        <div>
+          <Label className="text-gray-700 font-semibold mb-2 block">
+            Link de Referência
+          </Label>
+          <Input
+            value={formData.referenceLink}
+            onChange={(e) => setFormData({ ...formData, referenceLink: e.target.value })}
+            placeholder="https://..."
+            className="h-12 rounded-xl border-2"
+          />
         </div>
 
         <div>
