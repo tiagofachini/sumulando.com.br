@@ -121,7 +121,13 @@ const SearchResultsPage = () => {
       setResults([]);
       setTotalCount(0);
     } else {
-      const newResults = data.sumulas_data || [];
+      let newResults = data.sumulas_data || [];
+      if (!query) {
+        for (let i = newResults.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [newResults[i], newResults[j]] = [newResults[j], newResults[i]];
+        }
+      }
       setResults(prev => currentPage === 0 ? newResults : [...prev, ...newResults]);
       setTotalCount(data.total_count || 0);
       setHasMore(newResults.length === PAGE_SIZE);
