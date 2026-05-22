@@ -50,25 +50,23 @@ const SumulaManager = () => {
   const [selectedSumulas, setSelectedSumulas] = useState([]);
   const [bulkTopics, setBulkTopics] = useState([]);
   const [topicFilterOpen, setTopicFilterOpen] = useState(false);
-  const [genModalStage, setGenModalStage] = useState(null); // null | 'confirm' | 'processing' | 'done'
+  const [genModalStage, setGenModalStage] = useState(null);
   const [genProgress, setGenProgress] = useState({ current: 0, total: 0, results: [] });
-  const [topicModalStage, setTopicModalStage] = useState(null); // null | 'confirm' | 'processing' | 'review' | 'applying' | 'done'
+  const [topicModalStage, setTopicModalStage] = useState(null);
   const [topicProgress, setTopicProgress] = useState({ current: 0, total: 0 });
-  const [topicSuggestions, setTopicSuggestions] = useState([]); // [{sumuId, sumuTitle, error, suggestions:[{...accepted}]}]
+  const [topicSuggestions, setTopicSuggestions] = useState([]);
 
   const [formData, setFormData] = useState({
     id: '', slug: '', title: '', content: '',
     publishDate: new Date().toISOString().split('T')[0],
-    referenceLink: '', tribunal: '', categories: [], youtubeUrl: '', status: 'ativa'
+    referenceLink: '', tribunal: '', categories: [], youtubeUrl: '', status: 'ativa', categoria: 'nao-vinculante'
   });
 
   const loadData = useCallback(async () => {
     if (!supabase) return;
     setLoading(true);
     try {
-      // Supabase has a default limit of 1000 records. We fetch in chunks to get all records.
       let allSumulas = [];
-      let lastItem = null;
       let hasMore = true;
       let offset = 0;
       const CHUNK_SIZE = 1000;
@@ -109,6 +107,7 @@ const SumulaManager = () => {
         createdAt: s.created_at,
         youtubeUrl: s.youtube_url,
         status: s.status || 'ativa',
+        categoria: s.categoria || 'nao-vinculante',
         faqCount: s.faqs?.length || 0,
       }));
       setSumulas(formattedSumulas);
@@ -192,7 +191,7 @@ const SumulaManager = () => {
     setFormData({
       id: '', slug: '', title: '', content: '',
       publishDate: new Date().toISOString().split('T')[0],
-      referenceLink: '', tribunal: '', categories: [], youtubeUrl: ''
+      referenceLink: '', tribunal: '', categories: [], youtubeUrl: '', status: 'ativa', categoria: 'nao-vinculante'
     });
     setIsFormVisible(false);
     setEditingId(null);
@@ -218,7 +217,6 @@ const SumulaManager = () => {
     const newTitle = formData.title.trim();
     const newSlug = editingId ? slugify(formData.slug.trim()) : slugify(`${newTitle} ${tribunal.name}`);
 
-    // Check for duplicate title
     let titleQuery = supabase.from('sumulas').select('id', { count: 'exact' }).eq('title', newTitle).eq('tribunal_id', formData.tribunal);
     if (editingId) titleQuery = titleQuery.not('id', 'eq', editingId);
     
@@ -232,7 +230,6 @@ const SumulaManager = () => {
       return;
     }
 
-    // Check for duplicate slug
     let slugQuery = supabase.from('sumulas').select('id', { count: 'exact' }).eq('slug', newSlug);
     if (editingId) slugQuery = slugQuery.not('id', 'eq', editingId);
 
@@ -246,7 +243,6 @@ const SumulaManager = () => {
       return;
     }
 
-
     const sumulaData = {
       title: newTitle,
       slug: newSlug,
@@ -256,6 +252,7 @@ const SumulaManager = () => {
       tribunal_id: formData.tribunal,
       youtube_url: formData.youtubeUrl || null,
       status: formData.status || 'ativa',
+      categoria: formData.categoria || 'nao-vinculante',
     };
 
     try {
@@ -315,6 +312,7 @@ const SumulaManager = () => {
       publishDate: sumula.publishDate ? new Date(sumula.publishDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       youtubeUrl: sumula.youtubeUrl || '',
       status: sumula.status || 'ativa',
+      categoria: sumula.categoria || 'nao-vinculante',
     });
     setEditingId(sumula.id);
     setIsFormVisible(true);
@@ -323,15 +321,17 @@ const SumulaManager = () => {
 
   const handleAddNew = () => {
     setFormData({
-        id: '', 
-        slug: '', 
-        title: 'Súmula ', 
+        id: '',
+        slug: '',
+        title: 'Súmula ',
         content: '',
         publishDate: new Date().toISOString().split('T')[0],
-        referenceLink: '', 
-        tribunal: '', 
+        referenceLink: '',
+        tribunal: '',
         categories: [],
-        youtubeUrl: ''
+        youtubeUrl: '',
+        status: 'ativa',
+        categoria: 'nao-vinculante'
     });
     setEditingId(null);
     setIsFormVisible(true);
@@ -349,7 +349,7 @@ const SumulaManager = () => {
         if (new RegExp(`\\b${escaped}\\b`).test(title)) return 80;
       } catch (_) { /* ignore invalid regex */ }
       if (title.includes(termLower)) return 70;
-      return 30; // content match
+      return 30;
     };
 
     const filtered = sumulas.filter(sumula => {
@@ -379,13 +379,11 @@ const SumulaManager = () => {
     const [key, direction] = sortOption.split('_');
 
     return [...filtered].sort((a, b) => {
-      // When searching, relevance is primary sort key
       if (termLower) {
         const scoreDiff = getTitleRelevance(b) - getTitleRelevance(a);
         if (scoreDiff !== 0) return scoreDiff;
       }
 
-      // User-chosen sort as secondary (or primary when not searching)
       let valA = a[key];
       let valB = b[key];
       if (key === 'title') { valA = valA.toLowerCase(); valB = valB.toLowerCase(); }
@@ -463,7 +461,6 @@ const SumulaManager = () => {
   };
 
   const handleGenerateFaqs = async () => {
-    // PRE-VALIDATION: only process súmulas that don't already have FAQs
     const allSelected = sumulas.filter(s => selectedSumulas.includes(s.id));
     const sumulasToProcess = allSelected.filter(s => s.faqCount === 0);
     const skippedCount = allSelected.length - sumulasToProcess.length;
@@ -519,8 +516,6 @@ const SumulaManager = () => {
   };
 
   const handleSuggestTopics = async () => {
-    // PRE-VALIDATION: topic list must be loaded before consuming AI credits.
-    // Without it, every AI suggestion would be "new", generating garbage data.
     if (categories.length === 0) {
       toast({
         title: 'Lista de tópicos não carregada',
@@ -558,19 +553,15 @@ const SumulaManager = () => {
         const data = await response.json();
         if (!data.success) throw new Error(data.error || 'Falha desconhecida');
 
-        // Layer 1: validate AI-returned topic_id by format AND existence in the DB-loaded list.
-        // A syntactically valid UUID that doesn't exist in `topicos` would violate the FK constraint.
         const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         const topicIdSet = new Set(allTopics.map(t => t.id));
         const normalizedSuggestions = data.suggestions.map(s => {
           if (!s.is_new) {
             if (s.topic_id && UUID_RE.test(s.topic_id) && topicIdSet.has(s.topic_id)) {
-              return s; // confirmed: valid format + exists in DB
+              return s;
             }
-            // UUID malformed or not found in DB — try name-based fallback
             const match = allTopics.find(t => t.name.toLowerCase() === s.topic_name.toLowerCase());
             if (match) return { ...s, topic_id: match.id, is_new: false };
-            // Genuinely new topic
             return { ...s, topic_id: null, is_new: true };
           }
           return s;
@@ -638,7 +629,6 @@ const SumulaManager = () => {
           .single();
         if (topicError) throw topicError;
 
-        // Layer 3: upsert can return null on no-op updates; fallback to SELECT by name
         let topicId = topicData?.id;
         if (!topicId) {
           const { data: found, error: findError } = await supabase
@@ -649,8 +639,6 @@ const SumulaManager = () => {
         relations.push({ sumula_id: newTopic.sumuId, topico_id: topicId });
       }
 
-      // Layer 2: final guard — drop any relation whose topico_id is not in the loaded categories.
-      // Prevents FK violations from AI hallucinations that slipped through layer 1.
       const validTopicIds = new Set(categories.map(c => c.id));
       const safeRelations = relations.filter(r => {
         if (!r.topico_id || !validTopicIds.has(r.topico_id)) {
@@ -907,6 +895,11 @@ const SumulaManager = () => {
                           <Badge variant="secondary" className={`text-xs font-medium ${sumula.status === 'cancelada' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
                             {sumula.status === 'cancelada' ? 'Cancelada' : 'Ativa'}
                           </Badge>
+                          {sumula.categoria === 'vinculante' && (
+                            <Badge variant="secondary" className="text-xs font-medium bg-amber-100 text-amber-700 border border-amber-200">
+                              Vinculante
+                            </Badge>
+                          )}
                           <Badge variant={sumula.faqCount > 0 ? 'secondary' : 'outline'} className={`flex items-center gap-1 text-xs ${sumula.faqCount > 0 ? 'bg-green-100 text-green-800' : 'text-gray-400'}`}>
                             <HelpCircle className="w-3 h-3" />
                             {sumula.faqCount > 0 ? `${sumula.faqCount} FAQ${sumula.faqCount > 1 ? 's' : ''}` : 'Sem FAQs'}
@@ -999,7 +992,6 @@ const SumulaManager = () => {
         )}
       </div>
 
-    {/* FAQ Generation Modal */}
     <Dialog open={genModalStage !== null} onOpenChange={(open) => { if (!open && genModalStage !== 'processing') setGenModalStage(null); }}>
       <DialogContent className="sm:max-w-[500px]">
         {genModalStage === 'confirm' && (() => {
@@ -1124,7 +1116,6 @@ const SumulaManager = () => {
       </DialogContent>
     </Dialog>
 
-    {/* Topic Suggestion Modal */}
     <Dialog open={topicModalStage !== null} onOpenChange={(open) => { if (!open && topicModalStage !== 'processing' && topicModalStage !== 'applying') setTopicModalStage(null); }}>
       <DialogContent className="sm:max-w-[600px] max-h-[85vh] flex flex-col">
 

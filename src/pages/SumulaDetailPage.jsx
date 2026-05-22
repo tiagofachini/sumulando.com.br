@@ -58,8 +58,7 @@ const FeedbackButton = ({ sumulaId, sumulaTitle, sumulaSlug, faqId, faqQuestion 
 const getYoutubeEmbedUrl = (url) => {
   if (!url) return null;
   
-  // Extract video ID from various YouTube URL formats
-  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/ ;
   const match = url.match(regExp);
   
   if (match && match[2].length === 11) {
@@ -203,7 +202,6 @@ const SumulaDetailPage = () => {
             ]
           })}
         </script>
-        {/* Google tag (gtag.js) */}
         <script async src="https://www.googletagmanager.com/gtag/js?id=AW-1051517207"></script>
         <script>
           {`
@@ -231,6 +229,11 @@ const SumulaDetailPage = () => {
                       <span className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold rounded-full">
                         {sumula.tribunal_name}
                       </span>
+                      {sumula.categoria === 'vinculante' && (
+                        <span className="px-3 py-1 bg-amber-100 text-amber-700 text-sm font-semibold rounded-full border border-amber-200">
+                          Vinculante
+                        </span>
+                      )}
                       {sumula.status === 'cancelada' && (
                         <span className="px-3 py-1 bg-red-100 text-red-700 text-sm font-semibold rounded-full border border-red-200">
                           Cancelada
