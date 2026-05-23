@@ -187,9 +187,12 @@ const SearchResultsPage = () => {
     e.stopPropagation();
   };
 
-  // Topic-slug pages (/busca?topico=<slug>) are real listing pages → indexable.
-  // UUID params, search queries, and plain /busca are dynamic → noindex.
-  const isTopicSlugPage = !query && topicsParams.length > 0 && !topicsParams.some(isUUID) && tribunaisParams.length === 0;
+  // noindex only for UUID topic params (legacy) or plain /busca with no filters.
+  const hasUUIDTopics = topicsParams.some(isUUID);
+  const hasNoParams = !query && topicsParams.length === 0 && tribunaisParams.length === 0;
+  const isNoIndex = hasUUIDTopics || hasNoParams;
+
+  const isTopicSlugPage = !query && topicsParams.length > 0 && !hasUUIDTopics && tribunaisParams.length === 0;
   const topicNames = topicsParams.map(getTopicName).join(', ');
 
   const pageTitle = isTopicSlugPage
@@ -200,8 +203,12 @@ const SearchResultsPage = () => {
     ? `Veja todas as súmulas dos principais tribunais brasileiros sobre ${topicNames}. Pesquise, estude e compare jurisprudência no Sumulando.`
     : `Resultados da busca por ${query || 'súmulas'} no Sumulando.`;
 
-  const canonicalUrl = isTopicSlugPage
-    ? `${SITE_URL}/busca?${topicsParams.map(s => `topico=${encodeURIComponent(s)}`).join('&')}`
+  const canonicalParts = [];
+  if (query) canonicalParts.push(`q=${encodeURIComponent(query)}`);
+  topicsParams.filter(p => !isUUID(p)).forEach(s => canonicalParts.push(`topico=${encodeURIComponent(s)}`));
+  tribunaisParams.forEach(t => canonicalParts.push(`tribunal=${encodeURIComponent(t)}`));
+  const canonicalUrl = canonicalParts.length > 0
+    ? `${SITE_URL}/busca?${canonicalParts.join('&')}`
     : `${SITE_URL}/busca`;
 
   return (
@@ -209,7 +216,7 @@ const SearchResultsPage = () => {
       <Helmet>
         <title>{pageTitle}</title>
         <meta name="description" content={pageDescription} />
-        {!isTopicSlugPage && <meta name="robots" content="noindex, follow" />}
+        {isNoIndex && <meta name="robots" content="noindex, follow" />}
         <link rel="canonical" href={canonicalUrl} />
         <meta property="og:url" content={canonicalUrl} />
         <meta property="og:title" content={pageTitle} />
