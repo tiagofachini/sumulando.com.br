@@ -187,32 +187,49 @@ const SearchResultsPage = () => {
     e.stopPropagation();
   };
 
+  // Topic-slug pages (/busca?topico=<slug>) are real listing pages → indexable.
+  // UUID params, search queries, and plain /busca are dynamic → noindex.
+  const isTopicSlugPage = !query && topicsParams.length > 0 && !topicsParams.some(isUUID) && tribunaisParams.length === 0;
+  const topicNames = topicsParams.map(getTopicName).join(', ');
+
+  const pageTitle = isTopicSlugPage
+    ? `Súmulas sobre ${topicNames} — Sumulando`
+    : `Resultados da busca ${getSearchTermText()} — Sumulando`;
+
+  const pageDescription = isTopicSlugPage
+    ? `Veja todas as súmulas dos principais tribunais brasileiros sobre ${topicNames}. Pesquise, estude e compare jurisprudência no Sumulando.`
+    : `Resultados da busca por ${query || 'súmulas'} no Sumulando.`;
+
+  const canonicalUrl = isTopicSlugPage
+    ? `${SITE_URL}/busca?${topicsParams.map(s => `topico=${encodeURIComponent(s)}`).join('&')}`
+    : `${SITE_URL}/busca`;
+
   return (
     <>
       <Helmet>
-        <title>{`Resultados da busca ${getSearchTermText()} - Sumulando`}</title>
-        <meta name="description" content={`Resultados da busca por ${query || 'súmulas'} no Sumulando.`} />
-        <meta name="robots" content="noindex, follow" />
-        <link rel="canonical" href={`${SITE_URL}/busca`} />
-        <meta property="og:url" content={`${SITE_URL}/busca`} />
-        <meta property="og:title" content={`Resultados da busca ${getSearchTermText()} - Sumulando`} />
-        <meta property="og:description" content={`Resultados da busca por ${query || 'súmulas'} no Sumulando.`} />
+        <title>{pageTitle}</title>
+        <meta name="description" content={pageDescription} />
+        {!isTopicSlugPage && <meta name="robots" content="noindex, follow" />}
+        <link rel="canonical" href={canonicalUrl} />
+        <meta property="og:url" content={canonicalUrl} />
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={pageDescription} />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://horizons-cdn.hostinger.com/d74f9542-f4b8-44ac-931b-e7d3b882cbac/19ab7e2e664db850bc6e313bf2b5dcdb.jpg" />
         <meta property="og:image:alt" content="Sumulando - Balança da Justiça" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={`Resultados da busca ${getSearchTermText()} - Sumulando`} />
-        <meta name="twitter:description" content={`Resultados da busca por ${query || 'súmulas'} no Sumulando.`} />
+        <meta name="twitter:title" content={pageTitle} />
+        <meta name="twitter:description" content={pageDescription} />
         <meta name="twitter:image" content="https://horizons-cdn.hostinger.com/d74f9542-f4b8-44ac-931b-e7d3b882cbac/19ab7e2e664db850bc6e313bf2b5dcdb.jpg" />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
             "@graph": [
               {
-                "@type": "SearchResultsPage",
-                "@id": `${SITE_URL}/busca#webpage`,
-                "url": `${SITE_URL}/busca`,
-                "name": `Resultados da busca${query ? ` por "${query}"` : ''} - Sumulando`,
+                "@type": isTopicSlugPage ? "CollectionPage" : "SearchResultsPage",
+                "@id": `${canonicalUrl}#webpage`,
+                "url": canonicalUrl,
+                "name": pageTitle,
                 "isPartOf": { "@id": `${SITE_URL}/#website` },
                 "inLanguage": "pt-BR",
                 ...(totalCount > 0 && { "numberOfItems": totalCount })
@@ -221,12 +238,13 @@ const SearchResultsPage = () => {
                 "@type": "BreadcrumbList",
                 "itemListElement": [
                   { "@type": "ListItem", "position": 1, "name": "Início", "item": SITE_URL },
-                  { "@type": "ListItem", "position": 2, "name": "Busca", "item": `${SITE_URL}/busca` }
+                  { "@type": "ListItem", "position": 2, "name": "Busca", "item": `${SITE_URL}/busca` },
+                  ...(isTopicSlugPage ? [{ "@type": "ListItem", "position": 3, "name": topicNames, "item": canonicalUrl }] : [])
                 ]
               },
               ...(!loading && results.length > 0 ? [{
                 "@type": "ItemList",
-                "name": `Resultados da busca${query ? ` por "${query}"` : ''}`,
+                "name": pageTitle,
                 "numberOfItems": totalCount,
                 "itemListElement": results.slice(0, 20).map((sumula, index) => ({
                   "@type": "ListItem",
@@ -261,7 +279,7 @@ const SearchResultsPage = () => {
                 className="mb-8"
               >
                 <h1 className="text-3xl font-bold text-gray-800">
-                  Resultados da busca
+                  {isTopicSlugPage ? `Súmulas sobre ${topicNames}` : 'Resultados da busca'}
                 </h1>
                 {!loading && (
                   <>
