@@ -1,3 +1,3 @@
 ## Pages
-- [- Sumulando`}](/institutional): No description available
 - [Blog — Sumulando](/blog): Artigos e atualizações sobre súmulas, jurisprudência e direito dos principais tribunais brasileiros.
+- [Login Administrativo - Sumulando](/adminlogin): Área administrativa do Sumulando
