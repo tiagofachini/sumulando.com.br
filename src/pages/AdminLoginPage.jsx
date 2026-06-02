@@ -61,16 +61,6 @@ import React, { useState } from 'react';
             <title>Login Administrativo - Sumulando</title>
             <meta name="robots" content="noindex, nofollow" />
             <meta name="description" content="Área administrativa do Sumulando" />
-            {/* Google tag (gtag.js) */}
-            <script async src="https://www.googletagmanager.com/gtag/js?id=G-B3DPVRHY5H"></script>
-            <script>
-              {`
-                window.dataLayer = window.dataLayer || [];
-                function gtag(){dataLayer.push(arguments);}
-                gtag('js', new Date());
-                gtag('config', 'G-B3DPVRHY5H');
-              `}
-            </script>
           </Helmet>
 
           <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-600">

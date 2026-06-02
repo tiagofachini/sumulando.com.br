@@ -202,15 +202,6 @@ const SumulaDetailPage = () => {
             ]
           })}
         </script>
-        <script async src="https://www.googletagmanager.com/gtag/js?id=AW-1051517207"></script>
-        <script>
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', 'AW-1051517207');
-          `}
-        </script>
       </Helmet>
       
       <div className="flex flex-col min-h-screen">

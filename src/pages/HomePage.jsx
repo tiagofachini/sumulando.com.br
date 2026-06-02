@@ -126,16 +126,6 @@ const HomePage = () => {
             ]
           })}
         </script>
-        {/* Google tag (gtag.js) */}
-        <script async src="https://www.googletagmanager.com/gtag/js?id=G-B3DPVRHY5H"></script>
-        <script>
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', 'G-B3DPVRHY5H');
-          `}
-        </script>
       </Helmet>
 
       <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden">
