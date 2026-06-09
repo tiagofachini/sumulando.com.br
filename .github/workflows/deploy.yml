@@ -50,6 +50,7 @@ jobs:
           port: 21
 
       - name: Deploy Edge Functions no Supabase
+        if: always()
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
