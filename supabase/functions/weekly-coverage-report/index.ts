@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
       date: today,
       tribunais_analisados: rows.length,
       total_esperado: totalExpected,
-      total_cadastrado: totalHave,
+      total_identificado: totalHave,
       total_faltando: totalMissing,
       cobertura_pct: overallPct,
     };
@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
           </div>
           <div style="background:#f0fdf4;border-radius:8px;padding:16px 24px;text-align:center;">
             <div style="font-size:28px;font-weight:800;color:#15803d;">${totalHave.toLocaleString('pt-BR')}</div>
-            <div style="font-size:13px;color:#22c55e;">Cadastradas</div>
+            <div style="font-size:13px;color:#22c55e;">Identificadas nos tribunais</div>
           </div>
           <div style="background:#fef2f2;border-radius:8px;padding:16px 24px;text-align:center;">
             <div style="font-size:28px;font-weight:800;color:#dc2626;">${totalMissing.toLocaleString('pt-BR')}</div>

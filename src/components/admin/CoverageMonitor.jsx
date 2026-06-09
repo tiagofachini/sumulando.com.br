@@ -195,7 +195,7 @@ const CoverageMonitor = () => {
           <Card className="bg-green-50 border-green-200">
             <CardContent className="p-4 text-center">
               <p className="text-3xl font-extrabold text-green-700">{totalHave.toLocaleString('pt-BR')}</p>
-              <p className="text-sm text-green-600 mt-1">Súmulas cadastradas</p>
+              <p className="text-sm text-green-600 mt-1">Identificadas nos tribunais</p>
             </CardContent>
           </Card>
           <Card className="bg-red-50 border-red-200">
