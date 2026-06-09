@@ -8,25 +8,22 @@ const corsHeaders = {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const adminEmail  = Deno.env.get('ADMIN_EMAIL');
+  const resendKey   = Deno.env.get('RESEND_API_KEY');
+
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const adminEmail  = Deno.env.get('ADMIN_EMAIL');
-    const resendKey   = Deno.env.get('RESEND_API_KEY');
-
-    if (!adminEmail || !resendKey) {
-      throw new Error('ADMIN_EMAIL or RESEND_API_KEY not configured');
-    }
-
     const db = createClient(supabaseUrl, serviceKey);
 
+    // Step 1: compute coverage — always runs, independent of email config
     const { data: rows, error } = await db.rpc('get_coverage_report');
     if (error) throw error;
 
     if (!rows || rows.length === 0) {
       return new Response(
         JSON.stringify({ ok: true, message: 'No tribunais configured for monitoring.' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -39,6 +36,25 @@ Deno.serve(async (req) => {
     const totalHave     = rows.reduce((s: number, r: any) => s + Number(r.sumulas_count || 0), 0);
     const totalMissing  = rows.reduce((s: number, r: any) => s + (r.missing_numbers?.length || 0), 0);
     const overallPct    = totalExpected > 0 ? ((totalHave / totalExpected) * 100).toFixed(1) : '0';
+
+    const coverageResult = {
+      ok: true,
+      date: today,
+      tribunais_analisados: rows.length,
+      total_esperado: totalExpected,
+      total_cadastrado: totalHave,
+      total_faltando: totalMissing,
+      cobertura_pct: overallPct,
+    };
+
+    // Step 2: send email — optional, failure does NOT fail the function
+    if (!adminEmail || !resendKey) {
+      console.warn('ADMIN_EMAIL or RESEND_API_KEY not configured — skipping email.');
+      return new Response(
+        JSON.stringify({ ...coverageResult, email_sent: false, email_reason: 'env vars not configured' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const buildUrl = (template: string | null, officialUrl: string | null, n: number): string => {
       if (template) return template.replace('{n}', String(n));
@@ -71,7 +87,6 @@ Deno.serve(async (req) => {
       <div style="font-family:sans-serif;max-width:700px;margin:0 auto;">
         <h2 style="color:#1e40af;">Relatório Semanal de Cobertura — Sumulando</h2>
         <p style="color:#374151;">${today}</p>
-
         <div style="display:flex;gap:16px;margin:20px 0;flex-wrap:wrap;">
           <div style="background:#eff6ff;border-radius:8px;padding:16px 24px;text-align:center;">
             <div style="font-size:28px;font-weight:800;color:#1d4ed8;">${overallPct}%</div>
@@ -86,7 +101,6 @@ Deno.serve(async (req) => {
             <div style="font-size:13px;color:#f87171;">Faltando</div>
           </div>
         </div>
-
         <table style="width:100%;border-collapse:collapse;font-size:14px;">
           <thead>
             <tr style="background:#f9fafb;">
@@ -98,7 +112,6 @@ Deno.serve(async (req) => {
           </thead>
           <tbody>${rowsHtml}</tbody>
         </table>
-
         <p style="margin-top:24px;">
           <a href="https://sumulando.com.br/admfachini/cobertura"
             style="background:#2563eb;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;">
@@ -109,10 +122,7 @@ Deno.serve(async (req) => {
 
     const emailRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${resendKey}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: 'Sumulando <notificacoes@sumulando.com.br>',
         to: [adminEmail],
@@ -123,13 +133,18 @@ Deno.serve(async (req) => {
 
     if (!emailRes.ok) {
       const err = await emailRes.text();
-      throw new Error(`Resend error: ${err}`);
+      console.error('Resend error:', err);
+      return new Response(
+        JSON.stringify({ ...coverageResult, email_sent: false, email_reason: err }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     return new Response(
-      JSON.stringify({ ok: true, tribunais_analisados: rows.length, total_faltando: totalMissing }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ ...coverageResult, email_sent: true }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
+
   } catch (err) {
     console.error('weekly-coverage-report error:', err);
     return new Response(

@@ -11,14 +11,27 @@ jobs:
     steps:
       - name: Trigger weekly-coverage-report edge function
         run: |
-          response=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+          http_code=$(curl -s -o /tmp/response.json -w "%{http_code}" \
             -X POST \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Content-Type: application/json" \
             "${{ secrets.SUPABASE_URL }}/functions/v1/weekly-coverage-report")
-          echo "HTTP status: $response"
+
+          echo "HTTP status: $http_code"
+          echo "Response body:"
           cat /tmp/response.json
-          if [ "$response" != "200" ]; then
-            echo "Edge function returned non-200 status"
+
+          # Accept any 2xx response — email failure returns 200 with email_sent:false
+          if [[ "$http_code" -lt 200 || "$http_code" -ge 300 ]]; then
+            echo "ERROR: Edge function returned non-2xx status ($http_code)"
             exit 1
           fi
+
+          # Warn (but don't fail) if coverage compute itself failed
+          ok=$(cat /tmp/response.json | python3 -c "import sys,json; print(json.load(sys.stdin).get('ok', True))" 2>/dev/null || echo "true")
+          if [ "$ok" = "False" ] || [ "$ok" = "false" ]; then
+            echo "WARNING: Function returned ok=false — check response body above"
+            exit 1
+          fi
+
+          echo "Coverage report completed successfully."

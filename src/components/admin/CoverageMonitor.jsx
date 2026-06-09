@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BarChart2, ChevronDown, ChevronUp, ExternalLink, RefreshCw, AlertCircle } from 'lucide-react';
+import { BarChart2, ChevronDown, ChevronUp, ExternalLink, RefreshCw, AlertCircle, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -110,19 +110,45 @@ const CoverageMonitor = () => {
   const { toast } = useToast();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const { data: rows, error } = await supabase.rpc('get_coverage_report');
-      if (error) throw error;
+      if (error) {
+        if (error.code === 'PGRST202') {
+          throw new Error('Função get_coverage_report não encontrada. Execute a migration fix_coverage_report.sql no Supabase.');
+        }
+        throw error;
+      }
       setData(rows || []);
       setLastUpdated(new Date());
     } catch (err) {
       toast({ title: 'Erro ao carregar cobertura', description: err.message, variant: 'destructive' });
     } finally {
       setLoading(false);
+    }
+  }, [toast]);
+
+  const sendReport = useCallback(async () => {
+    setSending(true);
+    try {
+      const { data: result, error } = await supabase.functions.invoke('weekly-coverage-report');
+      if (error) throw error;
+      if (result?.email_sent === false) {
+        toast({
+          title: 'Relatório gerado',
+          description: `E-mail não enviado: ${result.email_reason || 'variáveis de ambiente não configuradas'}`,
+        });
+      } else {
+        toast({ title: 'Relatório enviado!', description: 'O e-mail foi disparado com sucesso.' });
+      }
+    } catch (err) {
+      toast({ title: 'Erro ao disparar relatório', description: err.message, variant: 'destructive' });
+    } finally {
+      setSending(false);
     }
   }, [toast]);
 
@@ -146,10 +172,16 @@ const CoverageMonitor = () => {
             </p>
           )}
         </div>
-        <Button onClick={loadData} variant="outline" disabled={loading}>
-          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          Atualizar
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={loadData} variant="outline" disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Atualizar
+          </Button>
+          <Button onClick={sendReport} variant="outline" disabled={sending} className="text-blue-600 border-blue-300 hover:bg-blue-50">
+            <Send className={`w-4 h-4 mr-2 ${sending ? 'animate-pulse' : ''}`} />
+            {sending ? 'Enviando...' : 'Enviar relatório'}
+          </Button>
+        </div>
       </div>
 
       {!unconfigured && data.length > 0 && (
