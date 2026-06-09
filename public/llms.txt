@@ -1,3 +1,4 @@
 ## Pages
 - [Blog — Sumulando](/blog): Artigos e atualizações sobre súmulas, jurisprudência e direito dos principais tribunais brasileiros.
+- [Busca por Tese Jurídica — Sumulando](/buscatese): Descreva sua tese jurídica e deixe a inteligência artificial encontrar as súmulas mais relevantes para o seu caso.
 - [Login Administrativo - Sumulando](/adminlogin): Área administrativa do Sumulando

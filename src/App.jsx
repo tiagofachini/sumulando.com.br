@@ -17,6 +17,7 @@ import ManageFeedbacksPage from '@/pages/admin/ManageFeedbacksPage';
 import ManageCoveragePage from '@/pages/admin/ManageCoveragePage';
 import ManageSubscribersPage from '@/pages/admin/ManageSubscribersPage';
 import BlogPage from '@/pages/BlogPage';
+import BuscaTesePage from '@/pages/BuscaTesePage';
 import ProtectedRoute from '@/components/admin/ProtectedRoute';
 import { supabase } from './lib/supabaseClient';
 import { useToast } from './components/ui/use-toast';
@@ -132,6 +133,7 @@ function App() {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/busca" element={<SearchResultsPage />} />
+            <Route path="/busca-tese" element={<BuscaTesePage />} />
             <Route path="/sumula/:slug" element={<SumulaDetailPage />} />
             <Route path="/institucional/:slug" element={<InstitutionalPage />} />
             <Route path="/blog" element={<BlogPage />} />

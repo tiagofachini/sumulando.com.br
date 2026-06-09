@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
-import { Search, Scale } from 'lucide-react'; 
-import { useNavigate } from 'react-router-dom'; 
+import { Search, Scale, Sparkles, ArrowRight } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MultiSelectCombobox } from '@/components/MultiSelectCombobox';
@@ -218,11 +218,32 @@ const HomePage = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 1 }}
-            className="text-center mt-8"
+            className="text-center mt-6"
           >
             <p className="text-gray-600">
               {sumulasCount ? `Acesse mais de ${sumulasCount.toLocaleString('pt-BR')} súmulas` : 'Acesse milhares de súmulas'} dos principais tribunais brasileiros
             </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.1 }}
+            className="mt-4"
+          >
+            <Link
+              to="/busca-tese"
+              className="flex items-center justify-between bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-2xl px-6 py-4 hover:from-purple-100 hover:to-blue-100 transition-all group"
+            >
+              <div className="flex items-center gap-3">
+                <Sparkles className="w-5 h-5 text-purple-600 flex-shrink-0" />
+                <div className="text-left">
+                  <p className="font-semibold text-gray-800 text-sm">Busca por tese jurídica</p>
+                  <p className="text-xs text-gray-500">Descreva sua tese e a IA encontra as súmulas certas</p>
+                </div>
+              </div>
+              <ArrowRight className="w-4 h-4 text-purple-600 group-hover:translate-x-1 transition-transform flex-shrink-0" />
+            </Link>
           </motion.div>
 
 
