@@ -56,7 +56,6 @@ Tópicos disponíveis:
 ${topicosText}
 
 Retorne APENAS um objeto JSON válido (sem markdown, sem explicações) com:
-- "q": string com as 2-4 palavras-chave mais relevantes para busca por texto livre (sem artigos ou preposições)
 - "topicos": array de slugs dos tópicos mais relevantes (máximo 3, pode ser array vazio)
 - "tribunais": array de IDs dos tribunais mais relevantes (máximo 3, pode ser array vazio)
 
@@ -97,7 +96,6 @@ Responda apenas com o JSON, sem nenhum texto adicional.`;
     return new Response(
       JSON.stringify({
         ok: true,
-        q: parsed.q || '',
         topicos:   Array.isArray(parsed.topicos)   ? parsed.topicos   : [],
         tribunais: Array.isArray(parsed.tribunais) ? parsed.tribunais : [],
       }),

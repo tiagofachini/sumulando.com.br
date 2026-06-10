@@ -32,7 +32,6 @@ const BuscaTesePage = () => {
       if (!data?.ok) throw new Error(data?.error || 'Erro desconhecido na análise.');
 
       const params = new URLSearchParams();
-      if (data.q) params.append('q', data.q);
       (data.topicos || []).forEach((slug) => params.append('topico', slug));
       (data.tribunais || []).forEach((id) => params.append('tribunal', id));
 
