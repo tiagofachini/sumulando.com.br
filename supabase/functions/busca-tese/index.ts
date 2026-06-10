@@ -10,7 +10,7 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
+  const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY_SUMULANDO');
 
   try {
     const body = await req.json();
@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
 
     if (!anthropicKey) {
       return new Response(
-        JSON.stringify({ ok: false, error: 'ANTHROPIC_API_KEY não configurada.' }),
+        JSON.stringify({ ok: false, error: 'ANTHROPIC_API_KEY_SUMULANDO não configurada.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
