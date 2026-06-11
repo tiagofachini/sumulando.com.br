@@ -14,6 +14,11 @@ import {
 import { supabase } from '@/lib/supabaseClient';
 import { slugify } from '@/lib/utils';
 
+// Module-level cache — tribunais e tópicos são dados estáticos, não precisam
+// ser re-buscados em cada troca de rota.
+let _cachedTribunais = null;
+let _cachedTopics = null;
+
 const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -32,9 +37,12 @@ const Header = () => {
     const fetchInitialData = async () => {
         if (!supabase) return;
         setIsDataLoaded(false);
-        const { data: tribunaisData } = await supabase.from('tribunais').select('id, name');
-        
-        const tribunalOptions = tribunaisData?.map(t => ({ value: t.id, label: t.name })) || [];
+
+        if (!_cachedTribunais) {
+          const { data } = await supabase.from('tribunais').select('id, name');
+          _cachedTribunais = data?.map(t => ({ value: t.id, label: t.name })) || [];
+        }
+        const tribunalOptions = _cachedTribunais;
         setTribunais(tribunalOptions);
 
         const tribunalParams = searchParams.getAll('tribunal');
@@ -42,16 +50,23 @@ const Header = () => {
         setSelectedTribunais(currentSelectedTribunais);
 
         const topicParams = searchParams.getAll('topico');
-
         const tribunalIds = currentSelectedTribunais.map(t => t.value);
-        const { data: topicsData } = await supabase.rpc('get_topics_by_tribunais', { p_tribunal_ids: tribunalIds.length > 0 ? tribunalIds : null });
+        const hasFilter = tribunalIds.length > 0;
 
-        const topicOptions = topicsData?.map(t => ({ value: t.id, label: t.name, slug: slugify(t.name) })) || [];
-        setTopics(topicOptions);
+        if (!hasFilter && _cachedTopics) {
+          const topicOptions = _cachedTopics;
+          setTopics(topicOptions);
+          setInitialSearchTerm(searchParams.get('q') || '');
+          setSelectedTopics(topicOptions.filter(cat => topicParams.includes(cat.slug) || topicParams.includes(cat.value)));
+        } else {
+          const { data: topicsData } = await supabase.rpc('get_topics_by_tribunais', { p_tribunal_ids: hasFilter ? tribunalIds : null });
+          const topicOptions = topicsData?.map(t => ({ value: t.id, label: t.name, slug: slugify(t.name) })) || [];
+          if (!hasFilter) _cachedTopics = topicOptions;
+          setTopics(topicOptions);
+          setInitialSearchTerm(searchParams.get('q') || '');
+          setSelectedTopics(topicOptions.filter(cat => topicParams.includes(cat.slug) || topicParams.includes(cat.value)));
+        }
 
-        setInitialSearchTerm(searchParams.get('q') || '');
-        setSelectedTopics(topicOptions.filter(cat => topicParams.includes(cat.slug) || topicParams.includes(cat.value)));
-        
         setIsDataLoaded(true);
         setKey(Date.now()); // Reset the key to re-mount SearchForm with new initial values
     };

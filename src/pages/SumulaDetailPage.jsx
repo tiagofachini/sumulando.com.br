@@ -104,13 +104,28 @@ const SumulaDetailPage = () => {
 
   if (loading) {
     return (
-        <div className="flex flex-col min-h-screen">
-            <Header />
-            <main className="flex-grow flex items-center justify-center bg-gray-50">
-                <p className="text-xl text-gray-600">Carregando súmula...</p>
-            </main>
-            <Footer />
-        </div>
+      <div className="flex flex-col min-h-screen">
+        <Header />
+        <main className="flex-grow bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 pt-8 pb-16">
+          <div className="container mx-auto px-4">
+            <div className="max-w-4xl mx-auto animate-pulse">
+              <div className="bg-white/80 rounded-2xl shadow-xl p-8 mb-8">
+                <div className="h-8 bg-gray-200 rounded-full w-32 mb-6" />
+                <div className="h-9 bg-gray-200 rounded w-3/4 mb-3" />
+                <div className="h-6 bg-gray-200 rounded w-1/3 mb-8" />
+                <div className="bg-blue-50 rounded-xl p-6 space-y-3">
+                  <div className="h-4 bg-gray-200 rounded" />
+                  <div className="h-4 bg-gray-200 rounded w-11/12" />
+                  <div className="h-4 bg-gray-200 rounded w-10/12" />
+                  <div className="h-4 bg-gray-200 rounded w-9/12" />
+                  <div className="h-4 bg-gray-200 rounded w-8/12" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
     );
   }
 
@@ -210,10 +225,7 @@ const SumulaDetailPage = () => {
         <main className="flex-grow bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 pt-8 pb-16">
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
+              <div>
                 <Card className="bg-white/80 backdrop-blur-xl shadow-xl border-white/20 rounded-2xl overflow-hidden mb-8">
                   <CardHeader className="p-8">
                     <div className="mb-4 flex items-center gap-3 flex-wrap">
@@ -262,6 +274,7 @@ const SumulaDetailPage = () => {
                             src={youtubeEmbedUrl}
                             title="YouTube video player"
                             frameBorder="0"
+                            loading="lazy"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                             allowFullScreen
                           ></iframe>
@@ -300,8 +313,9 @@ const SumulaDetailPage = () => {
                 {sumula.faqs && sumula.faqs.length > 0 && (
                   <motion.div
                     className="mb-8"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0, transition: { delay: 0.1 } }}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
                   >
                     <Card className="bg-white/80 backdrop-blur-xl shadow-xl border-white/20 rounded-2xl overflow-hidden">
                       <CardHeader>
@@ -338,8 +352,9 @@ const SumulaDetailPage = () => {
 
                 {sumula.related_sumulas && sumula.related_sumulas.length > 0 && (
                   <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0, transition: { delay: 0.2 } }}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.1 }}
                   >
                      <Card className="bg-white/80 backdrop-blur-xl shadow-xl border-white/20 rounded-2xl overflow-hidden">
                         <CardHeader>
@@ -384,7 +399,7 @@ const SumulaDetailPage = () => {
                      </Card>
                   </motion.div>
                 )}
-              </motion.div>
+              </div>
             </div>
           </div>
         </main>

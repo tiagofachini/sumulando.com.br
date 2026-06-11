@@ -5,6 +5,24 @@
   </FilesMatch>
 </IfModule>
 
+# Cache de longa duração para assets estáticos com hash no nome (Vite gera hashes únicos)
+<IfModule mod_expires.c>
+  ExpiresActive On
+  <FilesMatch "\.(js|css|woff2?|ttf|otf|eot)$">
+    ExpiresDefault "access plus 1 year"
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+  <FilesMatch "\.(png|jpg|jpeg|gif|svg|ico|webp)$">
+    ExpiresDefault "access plus 1 year"
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+  # HTML nunca deve ser cacheado — sempre busca versão mais recente
+  <FilesMatch "\.html$">
+    ExpiresDefault "access plus 0 seconds"
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+  </FilesMatch>
+</IfModule>
+
 # Redireciona todas as rotas para index.html (necessário para React Router / SPA)
 <IfModule mod_rewrite.c>
   RewriteEngine On

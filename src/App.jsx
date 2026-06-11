@@ -1,27 +1,33 @@
-import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import React, { lazy, Suspense, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
-import HomePage from '@/pages/HomePage';
-import SearchResultsPage from '@/pages/SearchResultsPage';
-import SumulaDetailPage from '@/pages/SumulaDetailPage';
-import InstitutionalPage from '@/pages/InstitutionalPage';
-import AdminLoginPage from '@/pages/AdminLoginPage';
-import AdminLayout from '@/pages/admin/AdminLayout';
-import AdminDashboardPage from '@/pages/admin/AdminDashboardPage';
-import ManageSumulasPage from '@/pages/admin/ManageSumulasPage';
-import ManageTopicsPage from '@/pages/admin/ManageTopicsPage';
-import ManageTribunaisPage from '@/pages/admin/ManageTribunaisPage';
-import ManageInstitutionalPage from '@/pages/admin/ManageInstitutionalPage';
-import ManageFaqsPage from '@/pages/admin/ManageFaqsPage';
-import ManageFeedbacksPage from '@/pages/admin/ManageFeedbacksPage';
-import ManageCoveragePage from '@/pages/admin/ManageCoveragePage';
-import ManageSubscribersPage from '@/pages/admin/ManageSubscribersPage';
-import BlogPage from '@/pages/BlogPage';
-import BuscaTesePage from '@/pages/BuscaTesePage';
-import ProtectedRoute from '@/components/admin/ProtectedRoute';
 import { supabase } from './lib/supabaseClient';
 import { useToast } from './components/ui/use-toast';
+import ProtectedRoute from '@/components/admin/ProtectedRoute';
 
+const HomePage             = lazy(() => import('@/pages/HomePage'));
+const SearchResultsPage    = lazy(() => import('@/pages/SearchResultsPage'));
+const SumulaDetailPage     = lazy(() => import('@/pages/SumulaDetailPage'));
+const InstitutionalPage    = lazy(() => import('@/pages/InstitutionalPage'));
+const BlogPage             = lazy(() => import('@/pages/BlogPage'));
+const BuscaTesePage        = lazy(() => import('@/pages/BuscaTesePage'));
+const AdminLoginPage       = lazy(() => import('@/pages/AdminLoginPage'));
+const AdminLayout          = lazy(() => import('@/pages/admin/AdminLayout'));
+const AdminDashboardPage   = lazy(() => import('@/pages/admin/AdminDashboardPage'));
+const ManageSumulasPage    = lazy(() => import('@/pages/admin/ManageSumulasPage'));
+const ManageTopicsPage     = lazy(() => import('@/pages/admin/ManageTopicsPage'));
+const ManageTribunaisPage  = lazy(() => import('@/pages/admin/ManageTribunaisPage'));
+const ManageInstitutionalPage = lazy(() => import('@/pages/admin/ManageInstitutionalPage'));
+const ManageFaqsPage       = lazy(() => import('@/pages/admin/ManageFaqsPage'));
+const ManageFeedbacksPage  = lazy(() => import('@/pages/admin/ManageFeedbacksPage'));
+const ManageCoveragePage   = lazy(() => import('@/pages/admin/ManageCoveragePage'));
+const ManageSubscribersPage = lazy(() => import('@/pages/admin/ManageSubscribersPage'));
+
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+  </div>
+);
 
 function App() {
   const { toast } = useToast();
@@ -43,7 +49,7 @@ function App() {
         if (localTopics.length > 0) {
           const { data: existingTopics, error: fetchTopicsError } = await supabase.from('topicos').select('name');
           if (fetchTopicsError) throw fetchTopicsError;
-          
+
           const existingTopicNames = existingTopics.map(t => t.name);
           const newTopics = localTopics
             .filter(t => t.name && !existingTopicNames.includes(t.name))
@@ -67,7 +73,7 @@ function App() {
             const { data: existingSumulas, error: fetchSumulasError } = await supabase.from('sumulas').select('slug');
             if (fetchSumulasError) throw fetchSumulasError;
             const existingSumulaSlugs = existingSumulas.map(s => s.slug);
-            
+
             for (const sumula of localSumulas) {
                  if (!existingSumulaSlugs.includes(sumula.slug)) {
                     const { error: sumulaError, data: newSumulaData } = await supabase
@@ -111,7 +117,7 @@ function App() {
 
         localStorage.setItem('supabase_migration_v1_done', 'true');
         console.log('Migration finished successfully.');
-        
+
       } catch (error) {
         console.error("Migration failed:", error);
         localStorage.setItem('supabase_migration_v1_done', 'failed');
@@ -130,31 +136,32 @@ function App() {
     <Router>
       <div className="min-h-screen flex flex-col">
         <div className="flex-grow">
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/busca" element={<SearchResultsPage />} />
-            <Route path="/busca-tese" element={<BuscaTesePage />} />
-            <Route path="/sumula/:slug" element={<SumulaDetailPage />} />
-            <Route path="/institucional/:slug" element={<InstitutionalPage />} />
-            <Route path="/blog" element={<BlogPage />} />
-            
-            <Route path="/admfachini" element={<AdminLoginPage />} />
-            
-            <Route element={<ProtectedRoute />}>
-              <Route path="/admfachini" element={<AdminLayout />}>
-                <Route path="dashboard" element={<AdminDashboardPage />} />
-                <Route path="sumulas" element={<ManageSumulasPage />} />
-                <Route path="topicos" element={<ManageTopicsPage />} />
-                <Route path="tribunais" element={<ManageTribunaisPage />} />
-                <Route path="institucional" element={<ManageInstitutionalPage />} />
-                <Route path="faqs" element={<ManageFaqsPage />} />
-                <Route path="feedbacks" element={<ManageFeedbacksPage />} />
-                <Route path="cobertura" element={<ManageCoveragePage />} />
-                <Route path="cadastrados" element={<ManageSubscribersPage />} />
-              </Route>
-            </Route>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/busca" element={<SearchResultsPage />} />
+              <Route path="/busca-tese" element={<BuscaTesePage />} />
+              <Route path="/sumula/:slug" element={<SumulaDetailPage />} />
+              <Route path="/institucional/:slug" element={<InstitutionalPage />} />
+              <Route path="/blog" element={<BlogPage />} />
 
-          </Routes>
+              <Route path="/admfachini" element={<AdminLoginPage />} />
+
+              <Route element={<ProtectedRoute />}>
+                <Route path="/admfachini" element={<AdminLayout />}>
+                  <Route path="dashboard" element={<AdminDashboardPage />} />
+                  <Route path="sumulas" element={<ManageSumulasPage />} />
+                  <Route path="topicos" element={<ManageTopicsPage />} />
+                  <Route path="tribunais" element={<ManageTribunaisPage />} />
+                  <Route path="institucional" element={<ManageInstitutionalPage />} />
+                  <Route path="faqs" element={<ManageFaqsPage />} />
+                  <Route path="feedbacks" element={<ManageFeedbacksPage />} />
+                  <Route path="cobertura" element={<ManageCoveragePage />} />
+                  <Route path="cadastrados" element={<ManageSubscribersPage />} />
+                </Route>
+              </Route>
+            </Routes>
+          </Suspense>
         </div>
         <Toaster />
       </div>
